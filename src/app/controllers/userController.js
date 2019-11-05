@@ -1,104 +1,54 @@
-const {pool} = require('../../../config/database');
+const db = require('../../../modules/pool');
 const {logger} = require('../../../config/winston');
 
 const jwt = require('jsonwebtoken');
 const regexEmail = require('regex-email');
 const crypto = require('crypto');
 const secret_config = require('../../../config/secret');
+const utils = require('../../../modules/resModule')
 
 /**
- update : 2019.11.01
+ update : 2019.11.04
  01.signUp API = 회원가입
  */
-exports.signUp = async function (req, res) {
+exports.signup = async function (req, res) {
     const {
-        email, password, nickname
+        email, name, pw, repw
     } = req.body;
 
-    if (!email) return res.json({isSuccess: false, code: 301, message: "이메일을 입력해주세요."});
-    if (email.length > 30) return res.json({
-        isSuccess: false,
-        code: 302,
-        message: "이메일은 30자리 미만으로 입력해주세요."
-    });
-
-    if (!regexEmail.test(email)) return res.json({isSuccess: false, code: 303, message: "이메일을 형식을 정확하게 입력해주세요."});
-
-    if (!password) return res.json({isSuccess: false, code: 304, message: "비밀번호를 입력 해주세요."});
-    if (password.length < 6 || password.length > 20) return res.json({
-        isSuccess: false,
-        code: 305,
-        message: "비밀번호는 6~20자리를 입력해주세요."
-    });
-
-    if (!nickname) return res.json({isSuccess: false, code: 306, message: "닉네임을 입력 해주세요."});
-    if (nickname.length > 20) return res.json({
-        isSuccess: false,
-        code: 307,
-        message: "닉네임은 최대 20자리를 입력해주세요."
-    });
-
+    // if (!email) return res.send(utils.successFalse(301, "이메일을 입력해주세요."));
+    // if (email.length > 30) return res.send(utils.successFalse(302, "이메일은 30자리 미만으로 입력해주세요."));
+    // if (!regexEmail.test(email)) return res.send(utils.successFalse(303, "이메일을 형식을 정확하게 입력해주세요."));
+    // if (!pw) return res.send(utils.successFalse(304, "비밀번호를 입력 해주세요"));
+    // if (pw.length < 8 || pw.length > 20) return res.send(utils.successFalse(305, "비밀번호는 8~20자리를 입력해주세요."));
+    // if (!name) return res.send(utils.successFalse(306, "이름을 입력 해주세요."));
+    // if (name.length > 2) res.send(utils.successFalse(306, "이름은 최대 2자리를 입력해주세요."));
     try {
-        const connection = await pool.getConnection(async conn => conn);
         try {
+            console.log(email, name, pw)
             // 이메일 중복 확인
             const selectEmailQuery = `
-                SELECT email, nickname 
-                FROM UserInfo 
-                WHERE email = ?;
+                SELECT userEmail, userName 
+                FROM user 
+                WHERE userEmail = ?;
                 `;
             const selectEmailParams = [email];
-            const [emailRows] = await connection.query(selectEmailQuery, selectEmailParams);
+            const [emailRows] = await db.query(selectEmailQuery, selectEmailParams);
+            if ([emailRows].length > 0) res.send(utils.successFalse(308, "중복된 이메일입니다."));
 
-            if (emailRows.length > 0) {
-                connection.release();
-                return res.json({
-                    isSuccess: false,
-                    code: 308,
-                    message: "중복된 이메일입니다."
-                });
-            }
+            // 트렌젝션 처리 const signupTransaction =  await db.Transaction(async (connection) => { });
 
-            // 닉네임 중복 확인
-            const selectNicknameQuery = `
-                SELECT email, nickname 
-                FROM UserInfo 
-                WHERE nickname = ?;
-                `;
-            const selectNicknameParams = [nickname];
-            const [nicknameRows] = await connection.query(selectNicknameQuery, selectNicknameParams);
-
-            if (nicknameRows.length > 0) {
-                connection.release();
-                return res.json({
-                    isSuccess: false,
-                    code: 309,
-                    message: "중복된 닉네임입니다."
-                });
-            }
-
-            await connection.beginTransaction(); // START TRANSACTION
-            const hashedPassword = await crypto.createHash('sha512').update(password).digest('hex');
+            const hashedPassword = await crypto.createHash('sha512').update(pw).digest('hex');
 
             const insertUserInfoQuery = `
-                INSERT INTO UserInfo(email, pswd, nickname)
+                INSERT INTO user(userEmail, userPw, userName)
                 VALUES (?, ?, ?);
                     `;
-            const insertUserInfoParams = [email, hashedPassword, nickname];
-            await connection.query(insertUserInfoQuery, insertUserInfoParams);
-
-            await connection.commit(); // COMMIT
-            connection.release();
-            return res.json({
-                isSuccess: true,
-                code: 200,
-                message: "회원가입 성공"
-            });
+            const insertUserInfoParams = [email, hashedPassword, name];
+            await db.query(insertUserInfoQuery, insertUserInfoParams);
         } catch (err) {
-            await connection.rollback(); // ROLLBACK
-            connection.release();
             logger.error(`App - SignUp Query error\n: ${err.message}`);
-            return res.status(500).send(`Error: ${err.message}`);
+            return res.send(utils.successFalse(500, `Error: ${err.message}`));
         }
     } catch (err) {
         logger.error(`App - SignUp DB Connection error\n: ${err.message}`);
@@ -110,9 +60,9 @@ exports.signUp = async function (req, res) {
  update : 2019.11.01
  02.signIn API = 로그인
  **/
-exports.signIn = async function (req, res) {
+exports.signin = async function (req, res) {
     const {
-        email, password
+        email, pw
     } = req.body;
 
     if (!email) return res.json({isSuccess: false, code: 301, message: "이메일을 입력해주세요."});

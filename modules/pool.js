@@ -13,30 +13,23 @@ module.exports = { // 두 개의 메소드 module화
             logger.info(JSON.stringify(result[0]))
             return result[0];
         } catch (err) {
-            logger.error(`example non transaction DB Connection error\n: ${JSON.stringify(err)}`);
+            logger.error(`DB Connection error\n: ${JSON.stringify(err)}`);
             return false;
         }
     },
-    exampleNonTransaction: async function (sql, params) {
+    transaction : async (...args) => {
+        const connection = await pool.getConnection();
+    
         try {
-
-            console.log("ddddd" + pool)
-            //const pool = await poolPromise;
-            console.log("aaaaa" + pool)
-            const connection = await pool.getConnection();
-            try {
-                const [rows] = await connection.query(sql, params);
-                connection.release();
-                console.log(rows)
-                return rows;
-            } catch (err) {
-                logger.error(`example non transaction Query error\n: ${JSON.stringify(err)}`);
-                connection.release();
-                return false;
-            }
-        } catch (err) {
-            logger.error(`example non transaction DB Connection error\n: ${JSON.stringify(err)}`);
-            return false;
+            await connection.beginTransaction();
+            await args[0](connection);
+            await connection.commit();
+        } catch (error) {
+            console.log(error);
+            await connection.rollback();
+            logger.error(`App - Query error\n: ${JSON.stringify(err)}`);
+        } finally {
+            connection.release();
         }
     }
 };
