@@ -14,10 +14,24 @@ exports.getAllCategory = async function (req, res) {
                 FROM category;
                 `;
         const categoryResult = await db.query(selectCategoryQuery);
-        res.send(utils.successTrue(200, "카테고리조회 성공",categoryResult));
+        res.send(utils.successTrue(200, "카테고리조회 성공", categoryResult));
     } catch (err) {
         logger.error(`App - Query error\n: ${err.message}`);
         return res.send(utils.successFalse(500, `Error: ${err.message}`));
     }
-
 }
+
+exports.getBanner = async function (req, res) {
+    try {
+        const selectCategoryQuery = `
+                SELECT *
+                FROM banner;
+                `;
+        const categoryResult = await db.query(selectCategoryQuery);
+        res.send(utils.successTrue(200, "배너조회 성공", categoryResult));
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+}
+

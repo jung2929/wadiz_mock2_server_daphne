@@ -5,8 +5,7 @@ module.exports = function(app){
     app.get('/category', jwtMiddleware, category.getAllCategory);
     app.get('/category',category.getAllCategory);
 
-    // app.get('/category/:categoryIdx', jwtMiddleware, category.getCategory);
-    // app.get('/category/:categoryIdx',category.getCategory);
+    app.get('/banner',category.getBanner);
 
    
 };
