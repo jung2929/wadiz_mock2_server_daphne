@@ -106,16 +106,3 @@ exports.signin = async function (req, res) {
         return res.send(utils.successFalse(500, `Error: ${err.message}`));
     }
 };
-
-/**
- update : 2019.09.23
- 03.check API = token 검증
- **/
-exports.check = async function (req, res) {
-    res.json({
-        isSuccess: true,
-        code: 200,
-        message: "검증 성공",
-        info: req.verifiedToken
-    })
-};

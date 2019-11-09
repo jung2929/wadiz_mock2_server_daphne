@@ -10,12 +10,12 @@ module.exports = { // 두 개의 메소드 module화
             const connection = await pool.getConnection(async conn => conn);
             const result = await connection.query(queryText, data) || null;
             connection.release();
-            logger.info(JSON.stringify(result[0]))
+            console.log("ㅇㅇㅇㅇㅇㅇ"+ result[0])
             return result[0];
         } catch (err) {
             logger.error(`DB Connection error\n: ${JSON.stringify(err)}`);
-            return false;
-        }
+            return false; //return 타입 수정
+        } //finally
     },
     transaction : async (...args) => {
         const connection = await pool.getConnection();
