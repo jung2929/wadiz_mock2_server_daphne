@@ -157,7 +157,6 @@ exports.getRewardProject = async function (req, res) {
                             FROM wadiz.reward r
                             WHERE r.projectIdx = ?;`
 
-
     const getRewardResult = await db.query(getRewardQuery, [projectIdx])
     try {
         if (!getRewardResult) {

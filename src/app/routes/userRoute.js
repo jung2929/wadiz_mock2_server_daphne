@@ -5,4 +5,6 @@ module.exports = function(app){
     app.route('/signup').post(user.signup);
     app.route('/signin').post(user.signin);
 
+    app.get('/profile', jwtMiddleware, user.getProfile);
+
 };

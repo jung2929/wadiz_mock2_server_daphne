@@ -85,8 +85,8 @@ exports.signin = async function (req, res) {
             } else {
                 //토큰 생성
                 let token = await jwt.sign({
-                    id: userInfoRows[0].id,
-                    email: email
+                    id: userInfoRows[0].userIdx,
+                    //email: email
                     // password: hashedPassword,
                     // nickname: userInfoRows[0].nickname,
                 }, // 토큰의 내용(payload)
@@ -106,3 +106,76 @@ exports.signin = async function (req, res) {
         return res.send(utils.successFalse(500, `Error: ${err.message}`));
     }
 };
+
+/**
+ update : 2019.11.10
+ getProfile API = 마이페이지 조회
+ 이름 개인회원 프로필이미지 관심사(5개)
+ **/
+exports.getProfile = async function (req, res) {
+
+    let decode = await jwt.verify(req.headers.token,secret_config.jwtsecret)
+    const userIdx = decode.id
+
+    const getProfileQuery = `SELECT userName, profileImg FROM wadiz.user WHERE userIdx = ?`
+    const getInteret = `SELECT c.category FROM wadiz.category c, wadiz.categoryInterest i WHERE c.categoryIdx = i.categoryIdx AND i.userIdx = ?`
+    
+    const getProfileR = await db.query(getProfileQuery, userIdx)
+    const getInterestR = await db.query(getInteret,userIdx)
+    const getProfileResult = {
+        "userName":getProfileR[0].userName,
+        "profileImg":getProfileR[0].profileImg,
+        "interestList":getInterestR
+        }
+    try {
+        if (!getProfileResult) {
+            res.send(utils.successFalse(600, "마이페이지 조회실패"));
+        } else {
+            if(getProfileResult.length == 0){
+                res.send(utils.successFalse(404, "해당 유저가 존재하지 않습니다."));
+            } else res.send(utils.successTrue(200, "마이페이지 조회성공", getProfileResult));
+        }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+}
+
+/**
+ update : 2019.11.10
+ getProfile API = 마이페이지 리워드 조회
+ 
+ **/
+exports.getProfileMyReward = async function (req, res) {
+
+    let decode = await jwt.verify(req.headers.token,secret_config.jwtsecret)
+    const userIdx = decode.id
+
+    const getMyReward = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName,
+                        round(((SELECT SUM(r.rewardPrice) FROM wadiz.account a, wadiz.reward r
+                        WHERE a.rewardIdx = r.rewardIdx)/p.goal) * 100) as ahievement,
+                        (SELECT SUM(r.rewardPrice) FROM wadiz.account a, wadiz.reward r
+                        WHERE a.rewardIdx = r.rewardIdx) as amount,
+                        CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP),"일 남음") as remaining
+                        FROM wadiz.project p
+                        JOIN wadiz.category c ON p.categoryIdx = c.categoryIdx
+                        JOIN wadiz.maker m ON p.projectIdx = m.projectIdx
+                        JOIN 
+                        WHERE p.title LIKE ?;`
+    
+    const getProfileR = await db.query(getProfileQuery, userIdx)
+    
+    try {
+        if (!getProfileResult) {
+            res.send(utils.successFalse(600, "마이페이지 조회실패"));
+        } else {
+            if(getProfileResult.length == 0){
+                res.send(utils.successFalse(404, "해당 유저가 존재하지 않습니다."));
+            } else res.send(utils.successTrue(200, "마이페이지 조회성공", getProfileResult));
+        }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+
+}
