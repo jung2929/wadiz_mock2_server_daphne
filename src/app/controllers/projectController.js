@@ -19,7 +19,7 @@ var urlencode = require('urlencode');
 exports.getProject = async function (req, res) {
     //쿼리빌더 ORM 
     const orderby = req.query.orderby;
-console.log(orderby)
+    console.log(orderby)
     const selectRecoQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName,
                             round(((SELECT SUM(r.rewardPrice) FROM wadiz.account a, wadiz.reward r
                             WHERE a.rewardIdx = r.rewardIdx)/p.goal) * 100) as ahievement,
@@ -103,8 +103,8 @@ exports.searchProject = async function (req, res) {
     const decodeKeyword = urlencode.decode(search)
     const searchWordResult = await db.query(searchQuery, ['%' + decodeKeyword + '%']);
     const projectCntResult = {
-        projectResult : searchWordResult,
-        cnt : searchWordResult.length
+        projectResult: searchWordResult,
+        cnt: searchWordResult.length
     };
     try {
         if (projectCntResult.length == 0) {
@@ -117,4 +117,58 @@ exports.searchProject = async function (req, res) {
         return res.send(utils.successFalse(500, `Error: ${err.message}`));
     }
 
+}
+
+/** create : 2019.11.10
+ 05.project API = 프로젝트 상세정보 조회
+ 사진 타이틀 카테고리 설명 남은일수 달성률 총펀딩금액 서포터명수
+ **/
+exports.getBasicProject = async function (req, res) {
+    const projectIdx = req.params.projectIdx
+    const getBasicQuery = `SELECT p.thumnail, p.title, c.category, p.infoText, p.projectStory
+                            FROM wadiz.project p 
+                            JOIN wadiz.category c ON p.categoryIdx = c.categoryIdx
+                            WHERE p.projectIdx = ?`
+    const getBasicResult = await db.query(getBasicQuery, [projectIdx])
+    try {
+        if (!getBasicResult) {
+            res.send(utils.successFalse(600, "프로젝트 상세정보 조회실패"));
+        } else {
+            if(getBasicResult.length == 0){
+                res.send(utils.successFalse(404, "해당프로젝트가 존재하지 않습니다."));
+            } else res.send(utils.successTrue(200, "프로젝트 상세정보 조회성공", getBasicResult[0]));
+        }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+
+}
+
+/** create : 2019.11.10
+ 05.project API = 프로젝트 리워드 조회
+ 금액 이름 설명 배송비 발송시작일 제한수량 남은재고 완료펀딩개수
+ **/
+exports.getRewardProject = async function (req, res) {
+    const projectIdx = req.params.projectIdx
+    const getRewardQuery = `SELECT r.rewardIdx, CONCAT(FORMAT(r.rewardPrice,0),"원 펀딩") as rewardPrice, r.rewardName, r.rewardInfo, r.shipping, CONCAT("제한수량 ",FORMAT(r.quantity,0),"개") as quantity,
+                            CONCAT("현재 ",FORMAT(r.quantity - (SELECT count(a.rewardIdx) FROM wadiz.account a WHERE r.rewardIdx = a.rewardIdx),0),"개 남음!") as remaining,
+                            CONCAT("총 ",FORMAT((SELECT count(a.rewardIdx) FROM wadiz.account a WHERE r.rewardIdx = a.rewardIdx ),0),"개 펀딩완료") as completion
+                            FROM wadiz.reward r
+                            WHERE r.projectIdx = ?;`
+
+
+    const getRewardResult = await db.query(getRewardQuery, [projectIdx])
+    try {
+        if (!getRewardResult) {
+            res.send(utils.successFalse(600, "리워드 조회실패"));
+        } else {
+            if(getRewardResult.length == 0){
+                res.send(utils.successFalse(404, "해당 리워드가 존재하지 않습니다."));
+            } else res.send(utils.successTrue(200, "리워드 조회성공", getRewardResult));
+        }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
 }
