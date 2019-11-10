@@ -171,3 +171,26 @@ exports.getRewardProject = async function (req, res) {
         return res.send(utils.successFalse(500, `Error: ${err.message}`));
     }
 }
+
+/** create : 2019.11.10
+ 05.project API = 프로젝트 전챙 조회
+ 메이커이름 rewardDate, deliveryDate
+ **/
+exports.getPolicy = async function (req, res) {
+    const projectIdx = req.params.projectIdx
+    const getPolicyQuery = `SELECT m.makerName, p.rewardDate, p.deliveryDate FROM wadiz.maker m, wadiz.project p WHERE p.projectIdx = m.projectIdx AND p.projectIdx = ?;`
+
+    const getPolicyResult = await db.query(getPolicyQuery, [projectIdx])
+    try {
+        if (!getPolicyResult) {
+            res.send(utils.successFalse(600, "정책 조회실패"));
+        } else {
+            if(getPolicyResult.length == 0){
+                res.send(utils.successFalse(404, "해당 프로젝트가 존재하지 않습니다."));
+            } else res.send(utils.successTrue(200, "정책 조회성공", getPolicyResult[0]));
+        }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+}

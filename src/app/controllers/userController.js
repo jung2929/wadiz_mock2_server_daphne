@@ -143,7 +143,7 @@ exports.getProfile = async function (req, res) {
 
 /**
  update : 2019.11.10
- getProfile API = 마이페이지 리워드 조회
+ getProfile API = 마이페이지 마이리워드 조회
  
  **/
 exports.getProfileMyReward = async function (req, res) {
@@ -179,3 +179,43 @@ exports.getProfileMyReward = async function (req, res) {
     }
 
 }
+
+/**
+ update : 2019.11.10
+ getProfile API = 마이페이지 좋아한 리워드 조회
+ 
+ **/
+exports.getProfileMyLike= async function (req, res) {
+
+    let decode = await jwt.verify(req.headers.token,secret_config.jwtsecret)
+    const userIdx = decode.id
+
+    const getMyReward = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName,
+                        round(((SELECT SUM(r.rewardPrice) FROM wadiz.account a, wadiz.reward r
+                        WHERE a.rewardIdx = r.rewardIdx)/p.goal) * 100) as ahievement,
+                        (SELECT SUM(r.rewardPrice) FROM wadiz.account a, wadiz.reward r
+                        WHERE a.rewardIdx = r.rewardIdx) as amount,
+                        CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP),"일 남음") as remaining
+                        FROM wadiz.project p
+                        JOIN wadiz.category c ON p.categoryIdx = c.categoryIdx
+                        JOIN wadiz.maker m ON p.projectIdx = m.projectIdx
+                        JOIN 
+                        WHERE p.title LIKE ?;`
+    
+    const getProfileR = await db.query(getProfileQuery, userIdx)
+    
+    try {
+        if (!getProfileResult) {
+            res.send(utils.successFalse(600, "마이페이지 조회실패"));
+        } else {
+            if(getProfileResult.length == 0){
+                res.send(utils.successFalse(404, "해당 유저가 존재하지 않습니다."));
+            } else res.send(utils.successTrue(200, "마이페이지 조회성공", getProfileResult));
+        }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+
+}
+
