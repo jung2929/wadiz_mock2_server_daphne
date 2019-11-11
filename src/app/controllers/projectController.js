@@ -198,7 +198,7 @@ exports.getPolicy = async function (req, res) {
 }
 
 /** create : 2019.11.11
- 05.project API = 리워드 선택 조회
+ 05.project API = 리워드 선택 
 리워드수량 익명이름 익명금액 삽입
  **/
 exports.postReward = async function (req, res) {
