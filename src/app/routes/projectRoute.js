@@ -8,7 +8,6 @@ module.exports = function(app){
     app.get('/project/:projectIdx/basic', jwtMiddleware, project.getBasicProject);
     app.get('/project/:projectIdx/reward', jwtMiddleware, project.getRewardProject); 
     app.get('/project/:projectIdx/policy', jwtMiddleware, project.getPolicy);
-    // app.get('/project/deadline',project.getDeadlineProject);
-    // app.get('/project/new',project.getNewProject);
-    // app.get('/project/suporter',project.getSuporterProject);
+    app.route('/project/:projectIdx/reward/:rewardIdx').post(jwtMiddleware, project.postReward);
+  
 };

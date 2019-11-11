@@ -1,5 +1,7 @@
 const db = require('../../../modules/pool');
 const { logger } = require('../../../config/winston');
+const jwt = require('jsonwebtoken');
+const secret_config = require('../../../config/secret');
 
 const utils = require('../../../modules/resModule')
 var urlencode = require('urlencode');
@@ -134,7 +136,7 @@ exports.getBasicProject = async function (req, res) {
         if (!getBasicResult) {
             res.send(utils.successFalse(600, "프로젝트 상세정보 조회실패"));
         } else {
-            if(getBasicResult.length == 0){
+            if (getBasicResult.length == 0) {
                 res.send(utils.successFalse(404, "해당프로젝트가 존재하지 않습니다."));
             } else res.send(utils.successTrue(200, "프로젝트 상세정보 조회성공", getBasicResult[0]));
         }
@@ -162,7 +164,7 @@ exports.getRewardProject = async function (req, res) {
         if (!getRewardResult) {
             res.send(utils.successFalse(600, "리워드 조회실패"));
         } else {
-            if(getRewardResult.length == 0){
+            if (getRewardResult.length == 0) {
                 res.send(utils.successFalse(404, "해당 리워드가 존재하지 않습니다."));
             } else res.send(utils.successTrue(200, "리워드 조회성공", getRewardResult));
         }
@@ -173,7 +175,7 @@ exports.getRewardProject = async function (req, res) {
 }
 
 /** create : 2019.11.10
- 05.project API = 프로젝트 전챙 조회
+ 05.project API = 프로젝트 정책 조회
  메이커이름 rewardDate, deliveryDate
  **/
 exports.getPolicy = async function (req, res) {
@@ -185,9 +187,45 @@ exports.getPolicy = async function (req, res) {
         if (!getPolicyResult) {
             res.send(utils.successFalse(600, "정책 조회실패"));
         } else {
-            if(getPolicyResult.length == 0){
+            if (getPolicyResult.length == 0) {
                 res.send(utils.successFalse(404, "해당 프로젝트가 존재하지 않습니다."));
             } else res.send(utils.successTrue(200, "정책 조회성공", getPolicyResult[0]));
+        }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+}
+
+/** create : 2019.11.11
+ 05.project API = 리워드 선택 조회
+리워드수량 익명이름 익명금액 삽입
+ **/
+exports.postReward = async function (req, res) {
+    const rewardIdx = req.params.rewardIdx
+    const quantity = req.body.quantity
+    const veilName = req.body.veilName
+    const veilPrice = req.body.veilPrice
+    let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
+    const userIdx = decode.id
+    if(!rewardIdx) return res.send(utils.successFalse(301, "리워드를 선택해주세요"))
+    if(rewardIdx > 3) return res.send(utils.successFalse(302, "해당 리워드는 존재하지 않습니다."))
+    if(!quantity) return res.send(utils.successFalse(303, "수량을 선택해주세요"))
+    console.log(veilName, veilPrice)
+    //if(veilName != 0 || veilName != 1 || veilPrice != 0 || veilPrice != 1) return res.send(utils.successFalse(308, "공개 비공개 여부를 올바로 체크해주세요"));
+    const insertRewardQuery = `INSERT INTO wadiz.account (userIdx, rewardIdx, veilName, veilPrice) VALUES (?, ?, ?, ?);`
+
+    try {
+        for (var i = 0; i < quantity; i++) {
+            console.log("수량만큼 돌아"+quantity)
+            const insertRewardResult = await db.query(insertRewardQuery, [userIdx, rewardIdx, veilName, veilPrice])
+            if (!insertRewardResult) {
+                res.send(utils.successFalse(600, "리워드 선택 실패"));
+            } else {
+                if (insertRewardResult.length == 0) {
+                    res.send(utils.successFalse(404, "해당 프로젝트가 존재하지 않습니다."));
+                } else res.send(utils.successTrue(200, "리워드 선택 성공"));
+            }
         }
     } catch (err) {
         logger.error(`App - Query error\n: ${err.message}`);
