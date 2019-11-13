@@ -34,6 +34,16 @@
             "date": 1573438683322,
             "name": "log/2019-11-11-smart-push.log",
             "hash": "488e5605cc33f4be188d39c22889bfb8"
+        },
+        {
+            "date": 1573549633791,
+            "name": "log/2019-11-12-smart-push.log",
+            "hash": "1ef9bf11a0c6f133e891401df8899c04"
+        },
+        {
+            "date": 1573572667362,
+            "name": "log/2019-11-13-smart-push.log",
+            "hash": "670b3a780a83a6ba5010a8cd04bba8e5"
         }
     ]
 }

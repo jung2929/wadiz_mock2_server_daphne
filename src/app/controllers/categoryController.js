@@ -37,4 +37,3 @@ exports.getBanner = async function (req, res) {
         return res.send(utils.successFalse(500, `Error: ${err.message}`));
     }
 }
-

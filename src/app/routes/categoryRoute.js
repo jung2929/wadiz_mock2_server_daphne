@@ -3,9 +3,8 @@ module.exports = function(app){
     const jwtMiddleware = require('../../../config/jwtMiddleware');
 
     app.get('/category', category.getAllCategory);
-    app.get('/category',category.getAllCategory);
-
     app.get('/banner',category.getBanner);
+ 
 
    
 };

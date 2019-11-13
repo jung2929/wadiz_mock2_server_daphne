@@ -22,60 +22,129 @@ exports.getProject = async function (req, res) {
     //쿼리빌더 ORM 
     const orderby = req.query.orderby;
     console.log(orderby)
-    const selectRecoQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName,
-                            round(((SELECT SUM(r.rewardPrice) FROM wadiz.account a, wadiz.reward r
-                            WHERE a.rewardIdx = r.rewardIdx)/p.goal) * 100) as ahievement,
-                            (SELECT SUM(r.rewardPrice) FROM wadiz.account a, wadiz.reward r
-                            WHERE a.rewardIdx = r.rewardIdx) as amount,
-                            CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP),"일 남음") as remaining
-                            FROM wadiz.project p
-                            JOIN wadiz.category c ON p.categoryIdx = c.categoryIdx
-                            JOIN wadiz.maker m ON p.projectIdx = m.projectIdx
-                            WHERE p.star = 0;` //추천순 조회
+    const selectRecoQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
+                            CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
+                            CONCAT(FORMAT(ar.amount,0),"원") AS amount, 
+                            CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP), "일 남음") AS remaining
+                            FROM wadiz.project AS p 
+                            INNER JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx
+                            INNER JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
+                            INNER JOIN (
+                                SELECT r.projectIdx, 
+                                SUM(r.rewardPrice) AS amount 
+                                FROM wadiz.account AS a
+                            INNER JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                            GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
+                            WHERE p.star = 0;`
+    const selectFamousQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
+                                CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
+                                CONCAT(FORMAT(ar.amount,0),"원") AS amount,
+                                CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP), "일 남음") AS remaining
+                                FROM wadiz.project AS p
+                                INNER JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx
+                                INNER JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
+                                INNER JOIN (
+                                    SELECT r.projectIdx, 
+                                    SUM(r.rewardPrice) AS amount 
+                                    FROM wadiz.account AS a
+                                    INNER JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                                    GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
+                                    INNER JOIN ( 
+                                        SELECT COUNT(l.userIdx) as famous, 
+                                        l.projectIdx  
+                                        FROM wadiz.like l
+                                        INNER JOIN wadiz.user u ON l.userIdx = u.userIdx 
+                                        GROUP BY l.projectIdx) as lt ON lt.projectIdx = p.projectIdx
+                                        ORDER BY famous DESC;`  //인기순 조회
 
-    const selectFamousQuery = `SELECT * FROM project ORDER BY createdAt;`; //인기순 조회
-    const selectFundingQuery = `SELECT * FROM project ORDER BY createdAt;`; //펀딩순
-    const selectDeadlineQuery = `SELECT *FROM project ORDER BY createdAt;`; //마감임박순
-    const selectNewQuery = `SELECT * FROM project ORDER BY endDate;`; //최신순
-    const selectSuporterQuery = `SELECT *, count(*) as surportCnt FROM project ORDER BY surportCnt;`; //응원참여자순
-    const selectUnopendQuery = `SELECT * FROM project ORDER BY endDate;`; //오픈예정
-    const selectFinishedQuery = `SELECT * FROM project ORDER BY endDate;`; //종료된
-    const selectDoingQuery = `SELECT * FROM project ORDER BY endDate;`; //진행중인
+    const selectFundingQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
+                                CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
+                                CONCAT(FORMAT(ar.amount,0),"원") AS amount,
+                                CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP), "일 남음") AS remaining
+                                FROM wadiz.project AS p
+                                INNER JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx
+                                INNER JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
+                                INNER JOIN (
+                                    SELECT r.projectIdx, 
+                                    SUM(r.rewardPrice) AS amount 
+                                    FROM wadiz.account AS a
+                                    INNER JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                                    GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
+                                    ORDER BY achievement ASC;`; //펀딩순
 
-    // switch (orderby) {
-    //     case recommend:
-    //         const projectResult = await db.query(selectRecoQuery);
-    //         res.send(utils.successTrue(200, "추천순 프로젝트 조회 성공", projectResult));
-    //         break;
-    //     case famous:
-    //         const projectResult = await db.query(selectFamousQuery);
-    //         res.send(utils.successTrue(200, "인기순 프로젝트 조회 성공", projectResult));
-    //         break;
+    const selectDeadlineQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
+                                CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
+                                CONCAT(FORMAT(ar.amount,0),"원") AS amount,
+                                CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP), "일 남음") AS remaining
+                                FROM wadiz.project AS p
+                                INNER JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx 
+                                INNER JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
+                                INNER JOIN (    
+                                    SELECT r.projectIdx, 
+                                    SUM(r.rewardPrice) AS amount 
+                                    FROM wadiz.account AS a
+                                    INNER JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                                    GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx 
+                                    ORDER BY remaining ASC;`; //마감임박순
+    const selectNewQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
+                                    CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
+                                    CONCAT(FORMAT(ar.amount,0),"원") AS amount,
+                                    CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP), "일 남음") AS remaining
+                                    FROM wadiz.project AS p
+                                    INNER JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx 
+                                    INNER JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
+                                    INNER JOIN (    
+                                        SELECT r.projectIdx, 
+                                        SUM(r.rewardPrice) AS amount 
+                                        FROM wadiz.account AS a
+                                        INNER JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                                        GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx 
+                                        ORDER BY p.createdAt`; //최신순
+    const selectSupporterQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
+                                        CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
+                                        CONCAT(FORMAT(ar.amount,0),"원") AS amount,
+                                        CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP), "일 남음") AS remaining
+                                        FROM wadiz.project AS p
+                                        INNER JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx 
+                                        INNER JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
+                                        INNER JOIN (    
+                                            SELECT r.projectIdx, 
+                                            SUM(r.rewardPrice) AS amount 
+                                            FROM wadiz.account AS a
+                                            INNER JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                                            GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx 
+                                        INNER JOIN (
+                                            SELECT projectIdx, count(projectIdx) as sc
+                                            FROM wadiz.account 
+                                            GROUP BY projectIdx) as ac ON ac.projectIdx = p.projectIdx 
+                                            ORDER BY sc`; //응원참여자순
 
-    // };
-    //switch case
+    //const selectUnopendQuery = `SELECT * FROM project ORDER BY endDate;`; //오픈예정
+    //const selectFinishedQuery = `SELECT * FROM project ORDER BY endDate;`; //종료된
+    //const selectDoingQuery = `SELECT * FROM project ORDER BY endDate;`; //진행중인
+
+
     console.log()
     try {
         if (orderby === "recommend") {
             const projectResult = await db.query(selectRecoQuery);
             res.send(utils.successTrue(200, "추천순 프로젝트 조회 성공", projectResult));
-        } else if (orderby == famous) {
+        } else if (orderby == "famous") {
             const projectResult = await db.query(selectFamousQuery);
             res.send(utils.successTrue(200, "인기순 프로젝트 조회 성공", projectResult));
-        } else if (orderby == funding) {
-            const projectResult = await db.query(selectFamousQuery);
+        } else if (orderby == "funding") {
+            const projectResult = await db.query(selectFundingQuery);
             res.send(utils.successTrue(200, " 펀딩순 프로젝트 조회 성공", projectResult));
-        } else if (orderby == deadline) {
-            const projectResult = await db.query(selectFamousQuery);
+        } else if (orderby == "deadline") {
+            const projectResult = await db.query(selectDeadlineQuery);
             res.send(utils.successTrue(200, "마감임박순 프로젝트 조회 성공", projectResult));
-        }
-        else if (orderby == newp) {
+        } else if (orderby == "newp") {
             const projectResult = await db.query(selectFamousQuery);
             res.send(utils.successTrue(200, "최신순 프로젝트 조회 성공", projectResult));
-        } else if (orderby == support) {
-            const projectResult = await db.query(selectFamousQuery);
+        } else if (orderby == "supporter") {
+            const projectResult = await db.query(selectSupporterQuery);
             res.send(utils.successTrue(200, "응원참여자순 프로젝트 조회 성공", projectResult));
-        } else if (orderby == doing) {
+        } else if (orderby == "doing") {
             const projectResult = await db.query(selectFamousQuery);
             res.send(utils.successTrue(200, " 진행중 프로젝트 조회 성공", projectResult));
         }
@@ -84,32 +153,68 @@ exports.getProject = async function (req, res) {
         return res.send(utils.successFalse(500, `Error: ${err.message}`));
     }
 }
-
+/**
+ create : 2019.11.12
+ category API = 카테고리별 프로젝트 조회
+ */
+exports.getCategoryProject = async function (req, res) {
+    const categoryIdx = req.params.categoryIdx
+    if(categoryIdx < 0 || categoryIdx > 9) return res.send(utils.successFalse(301, "해당 카테고리가 존재하지 않습니다."));
+    try {
+        const categoryProjectQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
+                                        CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
+                                        CONCAT(FORMAT(ar.amount,0),"원") AS amount,
+                                        CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP), "일 남음") AS remaining
+                                        FROM wadiz.project AS p
+                                        INNER JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx
+                                        INNER JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
+                                        INNER JOIN (
+                                            SELECT r.projectIdx, 
+                                            SUM(r.rewardPrice) AS amount 
+                                            FROM wadiz.account AS a
+                                            INNER JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                                            GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
+                                            WHERE p.categoryIdx = ?;`
+        const categoryProjectResult = await db.query(categoryProjectQuery, [categoryIdx]);
+        console.log(categoryProjectResult)
+        if (categoryProjectResult.length == 0) {
+            res.send(utils.successFalse(404, "검색결과 없습니다."));
+        } else res.send(utils.successTrue(200, "카테고리별 프로젝트 성공", categoryProjectResult));
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+}
 /** create : 2019.11.10
  05.project API = 프로젝트 검색
  **/
 exports.searchProject = async function (req, res) {
-    const search = req.query.search
-    console.log(search)
-    const searchQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName,
-                        round(((SELECT SUM(r.rewardPrice) FROM wadiz.account a, wadiz.reward r
-                        WHERE a.rewardIdx = r.rewardIdx)/p.goal) * 100) as ahievement,
-                        (SELECT SUM(r.rewardPrice) FROM wadiz.account a, wadiz.reward r
-                        WHERE a.rewardIdx = r.rewardIdx) as amount,
-                        CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP),"일 남음") as remaining
-                        FROM wadiz.project p
-                        JOIN wadiz.category c ON p.categoryIdx = c.categoryIdx
-                        JOIN wadiz.maker m ON p.projectIdx = m.projectIdx
+    const word = req.query.word
+    const searchQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
+                        CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
+                        CONCAT(FORMAT(ar.amount,0),"원") AS amount,
+                        CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP), "일 남음") AS remaining
+                        FROM wadiz.project AS p
+                        INNER JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx
+                        INNER JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
+                        INNER JOIN (
+                            SELECT r.projectIdx, 
+                            SUM(r.rewardPrice) AS amount 
+                            FROM wadiz.account AS a
+                            INNER JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                            GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
                         WHERE p.title LIKE ?;`
 
-    const decodeKeyword = urlencode.decode(search)
+    const decodeKeyword = urlencode.decode(word)
+
     const searchWordResult = await db.query(searchQuery, ['%' + decodeKeyword + '%']);
+    console.log(searchWordResult.length)
     const projectCntResult = {
         projectResult: searchWordResult,
         cnt: searchWordResult.length
     };
     try {
-        if (projectCntResult.length == 0) {
+        if (searchWordResult.length == 0) {
             res.send(utils.successFalse(404, "검색결과 없습니다."));
         } else {
             res.send(utils.successTrue(200, "검색성공", projectCntResult));
@@ -208,16 +313,16 @@ exports.postReward = async function (req, res) {
     const veilPrice = req.body.veilPrice
     let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
     const userIdx = decode.id
-    if(!rewardIdx) return res.send(utils.successFalse(301, "리워드를 선택해주세요"))
-    if(rewardIdx > 3) return res.send(utils.successFalse(302, "해당 리워드는 존재하지 않습니다."))
-    if(!quantity) return res.send(utils.successFalse(303, "수량을 선택해주세요"))
+    if (!rewardIdx) return res.send(utils.successFalse(301, "리워드를 선택해주세요"))
+    if (rewardIdx > 3) return res.send(utils.successFalse(302, "해당 리워드는 존재하지 않습니다."))
+    if (!quantity) return res.send(utils.successFalse(303, "수량을 선택해주세요"))
     console.log(veilName, veilPrice)
     //if(veilName != 0 || veilName != 1 || veilPrice != 0 || veilPrice != 1) return res.send(utils.successFalse(308, "공개 비공개 여부를 올바로 체크해주세요"));
     const insertRewardQuery = `INSERT INTO wadiz.account (userIdx, rewardIdx, veilName, veilPrice) VALUES (?, ?, ?, ?);`
 
     try {
         for (var i = 0; i < quantity; i++) {
-            console.log("수량만큼 돌아"+quantity)
+            console.log("수량만큼 돌아" + quantity)
             const insertRewardResult = await db.query(insertRewardQuery, [userIdx, rewardIdx, veilName, veilPrice])
             if (!insertRewardResult) {
                 res.send(utils.successFalse(600, "리워드 선택 실패"));
