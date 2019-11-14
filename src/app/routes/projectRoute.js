@@ -4,6 +4,7 @@ module.exports = function(app){
 
 
     app.get('/project', project.getProject);
+    app.get('/project/unopened', project.getUnopenedProject);
     app.get('/project/search',project.searchProject);
     app.get('/project/:categoryIdx',project.getCategoryProject);
     app.get('/project/{projectIdx}/supporter',project.getSupporter);

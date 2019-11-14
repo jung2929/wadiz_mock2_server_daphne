@@ -124,13 +124,6 @@ exports.getProject = async function (req, res) {
                                             FROM wadiz.account 
                                             GROUP BY projectIdx) as ac ON ac.projectIdx = p.projectIdx 
                                             ORDER BY sc`; //응원참여자순
-
-    //const selectUnopendQuery = `SELECT * FROM project ORDER BY endDate;`; //오픈예정
-    //const selectFinishedQuery = `SELECT * FROM project ORDER BY endDate;`; //종료된
-    //const selectDoingQuery = `SELECT * FROM project ORDER BY endDate;`; //진행중인
-
-
-    console.log()
     try {
         if (orderby === "recommend") {
             const projectResult = await db.query(selectRecoQuery);
@@ -160,12 +153,35 @@ exports.getProject = async function (req, res) {
     }
 }
 /**
+ create : 2019.11.14
+ unopend API = 오픈예정 프로젝트 조회
+ */
+exports.getUnopenedProject = async function (req, res) {
+
+    const unopendQuery = `SELECT p.projectIdx, p.thumnail, p.title, m.makerName, TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP, p.startDate) as ts, 
+                            "11월중 오픈예정" as expected
+                            FROM wadiz.project AS p
+                            JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
+                            WHERE TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP, p.startDate) > 0; `
+    try {
+        const unopendResult = await db.query(unopendQuery);
+        if(unopendResult.length == 0 ){
+            res.send(utils.successFalse(404, "오픈예정중인 프로젝트가 없습니다"));
+        } else res.send(utils.successTrue(200, "오픈예정 프로젝트 조회 성공", unopendResult));
+
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+
+}
+/**
  create : 2019.11.12
  category API = 카테고리별 프로젝트 조회
  */
 exports.getCategoryProject = async function (req, res) {
     const categoryIdx = req.params.categoryIdx
-    if(categoryIdx < 0 || categoryIdx > 9) return res.send(utils.successFalse(301, "해당 카테고리가 존재하지 않습니다."));
+    if (categoryIdx < 0 || categoryIdx > 9) return res.send(utils.successFalse(301, "해당 카테고리가 존재하지 않습니다."));
     try {
         const categoryProjectQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
                                         IFNULL(CONCAT(ROUND((ar.amount / p.goal) * 100),"%"),"0%") as achievement,
@@ -197,7 +213,7 @@ exports.getCategoryProject = async function (req, res) {
  get supporter API = 프로젝트 서포터 조회
  총서포터명수 프로필 이미지 누가(익명인지) 얼마(비공개인지) 펀딩했습니다
  **/
-exports.getSupporter = async function (req, res) { 
+exports.getSupporter = async function (req, res) {
     let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
     const userIdx = decode.id
     const projectIdx = req.params.projectIdx
@@ -210,7 +226,7 @@ exports.getSupporter = async function (req, res) {
                                     FROM wadiz.user u 
                                     JOIN wadiz.account a ON u.userIdx = a.userIdx`
 
-                                
+
 }
 /** create : 2019.11.10
  05.project API = 프로젝트 검색
