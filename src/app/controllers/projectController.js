@@ -295,7 +295,35 @@ exports.getBasicProject = async function (req, res) {
     }
 
 }
+/** create : 2019.11.14
+ unopendDetail API = 오픈예정 프로젝트 상세 조회
+ **/
+exports.getUnopenedDetail = async function (req, res) {
 
+    const projectIdx = req.params.projectIdx
+    const getUnopendQuery = `SELECT p.thumnail, p.title, p.infoText, CONCAT("메이커 : ",m.makerName) as makerName,
+                            p.projectStory,
+                            "11월 중 오픈예정" as expected
+                            FROM wadiz.project p 
+                            JOIN wadiz.maker m ON p.projectIdx = m.projectIdx
+                            WHERE p.projectIdx = ? AND TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP, p.startDate) > 0`
+    const getUnopendResult = await db.query(getUnopendQuery, [projectIdx])
+    try {
+        if (!getUnopendResult) {
+            res.send(utils.successFalse(600, "오픈예정 프로젝트 상세정보 조회실패"));
+        } else {
+            if (getUnopendResult.length == 0) {
+                res.send(utils.successFalse(404, "해당 프로젝트가 존재하지 않습니다."));
+            } else res.send(utils.successTrue(200, "오픈예정 상세정보 조회성공", getUnopendResult[0]));
+        }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+
+
+
+}
 /** create : 2019.11.10
  05.project API = 프로젝트 리워드 조회
  금액 이름 설명 배송비 발송시작일 제한수량 남은재고 완료펀딩개수
