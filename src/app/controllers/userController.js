@@ -76,7 +76,7 @@ exports.signin = async function (req, res) {
                 WHERE userEmail = ?;
                 `;
         //let selectUserInfoParams = [email];
-       
+
         const userInfoRows = await db.query(selectUserInfoQuery, email);
         if (userInfoRows.length == 1) {
             const hashedPassword = await crypto.createHash('sha512').update(pw).digest('hex');
@@ -114,24 +114,24 @@ exports.signin = async function (req, res) {
  **/
 exports.getProfile = async function (req, res) {
 
-    let decode = await jwt.verify(req.headers.token,secret_config.jwtsecret)
+    let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
     const userIdx = decode.id
 
     const getProfileQuery = `SELECT userName, profileImg FROM wadiz.user WHERE userIdx = ?`
     const getInteret = `SELECT c.category FROM wadiz.category c, wadiz.categoryInterest i WHERE c.categoryIdx = i.categoryIdx AND i.userIdx = ?`
-    
+
     const getProfileR = await db.query(getProfileQuery, userIdx)
-    const getInterestR = await db.query(getInteret,userIdx)
+    const getInterestR = await db.query(getInteret, userIdx)
     const getProfileResult = {
-        "userName":getProfileR[0].userName,
-        "profileImg":getProfileR[0].profileImg,
-        "interestList":getInterestR
-        }
+        "userName": getProfileR[0].userName,
+        "profileImg": getProfileR[0].profileImg,
+        "interestList": getInterestR
+    }
     try {
         if (!getProfileResult) {
             res.send(utils.successFalse(600, "마이페이지 조회실패"));
         } else {
-            if(getProfileResult.length == 0){
+            if (getProfileResult.length == 0) {
                 res.send(utils.successFalse(404, "해당 유저가 존재하지 않습니다."));
             } else res.send(utils.successTrue(200, "마이페이지 조회성공", getProfileResult));
         }
@@ -148,30 +148,32 @@ exports.getProfile = async function (req, res) {
  **/
 exports.getProfileMyReward = async function (req, res) {
 
-    let decode = await jwt.verify(req.headers.token,secret_config.jwtsecret)
+    let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
     const userIdx = decode.id
 
-    const getMyReward = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName,
-                        round(((SELECT SUM(r.rewardPrice) FROM wadiz.account a, wadiz.reward r
-                        WHERE a.rewardIdx = r.rewardIdx)/p.goal) * 100) as ahievement,
-                        (SELECT SUM(r.rewardPrice) FROM wadiz.account a, wadiz.reward r
-                        WHERE a.rewardIdx = r.rewardIdx) as amount,
-                        CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP),"일 남음") as remaining
-                        FROM wadiz.project p
-                        JOIN wadiz.category c ON p.categoryIdx = c.categoryIdx
-                        JOIN wadiz.maker m ON p.projectIdx = m.projectIdx
-                        JOIN 
-                        WHERE p.title LIKE ?;`
-    
-    const getProfileR = await db.query(getProfileQuery, userIdx)
-    
+    const getMyReward = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
+                            CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
+                            CONCAT(FORMAT(ar.amount,0),"원") AS amount, 
+                            CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP), "일 남음") AS remaining
+                            FROM wadiz.project AS p 
+                            LEFT JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx
+                            LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
+                            LEFT JOIN (
+                                SELECT r.projectIdx, 
+                                SUM(r.rewardPrice) AS amount 
+                                FROM wadiz.account AS a
+                                LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
+                                GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
+                                LEFT JOIN wadiz.account a ON p.projectIdx = a.projectIdx
+                                WHERE a.userIdx = ? AND p.projectIdx = a.projectIdx`
+    const getMyrewardR = await db.query(getMyReward, userIdx)
     try {
-        if (!getProfileResult) {
-            res.send(utils.successFalse(600, "마이페이지 조회실패"));
+        if (!getMyrewardR) {
+            res.send(utils.successFalse(600, "마이리워드 조회실패"));
         } else {
-            if(getProfileResult.length == 0){
+            if (getMyrewardR.length == 0) {
                 res.send(utils.successFalse(404, "해당 유저가 존재하지 않습니다."));
-            } else res.send(utils.successTrue(200, "마이페이지 조회성공", getProfileResult));
+            } else res.send(utils.successTrue(200, "마이 리워드 조회성공", getMyrewardR));
         }
     } catch (err) {
         logger.error(`App - Query error\n: ${err.message}`);
@@ -181,36 +183,40 @@ exports.getProfileMyReward = async function (req, res) {
 }
 
 /**
- update : 2019.11.10
+ update : 2019.11.13
  getProfile API = 마이페이지 좋아한 리워드 조회
  
  **/
-exports.getProfileMyLike= async function (req, res) {
+exports.getProfileMyLike = async function (req, res) {
 
-    let decode = await jwt.verify(req.headers.token,secret_config.jwtsecret)
+    let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
     const userIdx = decode.id
 
-    const getMyReward = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName,
-                        round(((SELECT SUM(r.rewardPrice) FROM wadiz.account a, wadiz.reward r
-                        WHERE a.rewardIdx = r.rewardIdx)/p.goal) * 100) as ahievement,
-                        (SELECT SUM(r.rewardPrice) FROM wadiz.account a, wadiz.reward r
-                        WHERE a.rewardIdx = r.rewardIdx) as amount,
-                        CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP),"일 남음") as remaining
-                        FROM wadiz.project p
-                        JOIN wadiz.category c ON p.categoryIdx = c.categoryIdx
-                        JOIN wadiz.maker m ON p.projectIdx = m.projectIdx
-                        JOIN 
-                        WHERE p.title LIKE ?;`
-    
-    const getProfileR = await db.query(getProfileQuery, userIdx)
-    
+    const getLikeReward = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
+                            CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
+                            CONCAT(FORMAT(ar.amount,0),"원") AS amount, 
+                            CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP), "일 남음") AS remaining
+                            FROM wadiz.project AS p 
+                            LEFT JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx
+                            LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
+                            LEFT JOIN (
+                                SELECT r.projectIdx, 
+                                SUM(r.rewardPrice) AS amount 
+                                FROM wadiz.account AS a
+                                LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
+                                GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
+                                LEFT JOIN wadiz.like l ON p.projectIdx = l.userIdx
+                                WHERE l.userIdx = ? AND p.projectIdx = l.projectIdx`
+
+    const getLikeRewardR = await db.query(getLikeReward, userIdx)
+
     try {
-        if (!getProfileResult) {
-            res.send(utils.successFalse(600, "마이페이지 조회실패"));
+        if (!getLikeRewardR) {
+            res.send(utils.successFalse(600, "좋아한 리워드 조회실패"));
         } else {
-            if(getProfileResult.length == 0){
+            if (getLikeRewardR.length == 0) {
                 res.send(utils.successFalse(404, "해당 유저가 존재하지 않습니다."));
-            } else res.send(utils.successTrue(200, "마이페이지 조회성공", getProfileResult));
+            } else res.send(utils.successTrue(200, "좋아한 리워드 조회성공", getLikeRewardR));
         }
     } catch (err) {
         logger.error(`App - Query error\n: ${err.message}`);
