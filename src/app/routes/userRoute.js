@@ -6,6 +6,7 @@ module.exports = function(app){
     app.route('/signin').post(user.signin);
 
     app.get('/profile', jwtMiddleware, user.getProfile);
+    app.route('/profile').patch(jwtMiddleware,user.patchProfile);
     app.get('/profile/reward', jwtMiddleware, user.getProfileMyReward);
     app.get('/profile/like', jwtMiddleware, user.getProfileMyLike);
 

@@ -118,7 +118,7 @@ exports.getProfile = async function (req, res) {
     const userIdx = decode.id
 
     const getProfileQuery = `SELECT userName, profileImg FROM wadiz.user WHERE userIdx = ?`
-    const getInteret = `SELECT c.category FROM wadiz.category c, wadiz.categoryInterest i WHERE c.categoryIdx = i.categoryIdx AND i.userIdx = ?`
+    const getInteret = `SELECT DISTINCT c.category FROM wadiz.category c, wadiz.categoryInterest i WHERE c.categoryIdx = i.categoryIdx AND i.userIdx = ?`
 
     const getProfileR = await db.query(getProfileQuery, userIdx)
     const getInterestR = await db.query(getInteret, userIdx)
@@ -140,6 +140,42 @@ exports.getProfile = async function (req, res) {
         return res.send(utils.successFalse(500, `Error: ${err.message}`));
     }
 }
+/**
+ update : 2019.11.14
+ patchProfile API = 프로필 수정
+ 관심사 카테고리
+ **/
+exports.patchProfile = async function (req, res) {
+    let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
+    const userIdx = decode.id
+    const categoryItems = req.body.categoryItems
+    const userinfo = req.body.userinfo
+    const userInterestType = 1;
+
+    const editInfoQurey = `UPDATE wadiz.user SET userinfo = ? WHERE userIdx = ?`
+    const addInterestQuery = `INSERT INTO wadiz.categoryInterest (userIdx, type, categoryIdx) VALUE (?, ?, ?)`
+    console.log(categoryItems.length)
+
+    try {
+        if (categoryItems.length > 1) { //관심사가 여러개 들어올떄
+            const editInfoResult = await db.query(editInfoQurey, [userinfo, userIdx])
+            for (var i = 0; i < categoryItems.length; i++) {
+                const addInterestR = await db.query(addInterestQuery, [userIdx, userInterestType, categoryItems[i].categoryIdx])
+            }
+            res.send(utils.successTrue(201, "유저 관심사 여러개 추가/소개수정 성공"));
+        } else if (categoryItems.length == 1) {
+            const editInfoResult = await db.query(editInfoQurey, [userinfo, userIdx])
+            const addInterestR = await db.query(addInterestQuery, [userIdx, userInterestType, categoryItems[0].categoryIdx])
+            res.send(utils.successTrue(202, "유저 관심사 추가/소개수정 성공"));
+        } else if(categoryItems.length == 0) {
+            res.send(utils.successTrue(200, "관심사 선택 안함"));
+        } else res.send(utils.successFalse(600, "유저 관심사 추가/소개수정 실패"));
+
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+}
 
 /**
  update : 2019.11.10
@@ -154,7 +190,8 @@ exports.getProfileMyReward = async function (req, res) {
     const getMyReward = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
                             CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
                             CONCAT(FORMAT(ar.amount,0),"원") AS amount, 
-                            CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP), "일 남음") AS remaining
+                            CASE WHEN TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP,p.endDate) < 0 THEN "종료"
+                                ELSE CONCAT(TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP,p.endDate), "일 남음") END AS remaining
                             FROM wadiz.project AS p 
                             LEFT JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx
                             LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
@@ -195,7 +232,8 @@ exports.getProfileMyLike = async function (req, res) {
     const getLikeReward = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
                             CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
                             CONCAT(FORMAT(ar.amount,0),"원") AS amount, 
-                            CONCAT(TIMESTAMPDIFF(DAY, p.startDate, CURRENT_TIMESTAMP), "일 남음") AS remaining
+                            CASE WHEN TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP,p.endDate) < 0 THEN "종료"
+                                ELSE CONCAT(TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP,p.endDate), "일 남음") END AS remaining
                             FROM wadiz.project AS p 
                             LEFT JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx
                             LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
