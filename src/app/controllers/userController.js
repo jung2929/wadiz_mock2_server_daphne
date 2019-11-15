@@ -117,7 +117,7 @@ exports.getProfile = async function (req, res) {
     let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
     const userIdx = decode.id
 
-    const getProfileQuery = `SELECT userName, profileImg FROM wadiz.user WHERE userIdx = ?`
+    const getProfileQuery = `SELECT userName, profileImg, userInfo FROM wadiz.user WHERE userIdx = ?`
     const getInteret = `SELECT DISTINCT c.category FROM wadiz.category c, wadiz.categoryInterest i WHERE c.categoryIdx = i.categoryIdx AND i.userIdx = ?`
 
     const getProfileR = await db.query(getProfileQuery, userIdx)
@@ -125,6 +125,7 @@ exports.getProfile = async function (req, res) {
     const getProfileResult = {
         "userName": getProfileR[0].userName,
         "profileImg": getProfileR[0].profileImg,
+        "userInfo" : getProfileR[0].userInfo,
         "interestList": getInterestR
     }
     try {

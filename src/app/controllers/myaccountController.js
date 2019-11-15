@@ -18,7 +18,13 @@ exports.updateDelivery = async function (req, res) {
     const phone = req.body.phone
     const address = req.body.address
 
-    if (!name || !phone || !address) return res.send(utils.successFalse(301, "배송지 정보를 다 입력해주세요"))
+    if (!name || !phone || !address) {
+
+        console.log(userIdx)
+
+        return res.send(utils.successFalse(301, "배송지 정보를 다 입력해주세요"))
+    }
+
     console.log(userIdx)
 
     const insertDeliveryQuery = `UPDATE wadiz.user SET name = ?, phone = ?, address = ? WHERE userIdx = ?;`
