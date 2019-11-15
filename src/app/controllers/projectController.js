@@ -32,10 +32,10 @@ exports.getProject = async function (req, res) {
                             LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
                             LEFT JOIN (
                                 SELECT r.projectIdx, 
-                                SUM(r.rewardPrice * r.quantity) AS amount 
+                                SUM(r.rewardPrice * a.quantity) AS amount 
                                 FROM wadiz.account AS a
-                                LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
-                            GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
+                                LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
+                                GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
                             WHERE p.star = 0;`
     const selectFamousQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
                                 IFNULL(CONCAT(ROUND((ar.amount / p.goal) * 100),"%"),"0%") as achievement,
@@ -47,9 +47,9 @@ exports.getProject = async function (req, res) {
                                 LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
                                 LEFT JOIN (
                                     SELECT r.projectIdx, 
-                                    SUM(r.rewardPrice) AS amount 
+                                    SUM(r.rewardPrice * a.quantity) AS amount 
                                     FROM wadiz.account AS a
-                                    LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                                    LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
                                     GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
                                     LEFT JOIN ( 
                                         SELECT COUNT(l.userIdx) as famous, 
@@ -69,9 +69,9 @@ exports.getProject = async function (req, res) {
                                 LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
                                 LEFT JOIN (
                                     SELECT r.projectIdx, 
-                                    SUM(r.rewardPrice) AS amount 
+                                    SUM(r.rewardPrice * a.quantity) AS amount 
                                     FROM wadiz.account AS a
-                                    LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                                    LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
                                     GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
                                     ORDER BY achievement DESC;`; //펀딩순
 
@@ -83,11 +83,11 @@ exports.getProject = async function (req, res) {
                                 FROM wadiz.project AS p
                                 LEFT JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx 
                                 LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
-                                LEFT JOIN (    
+                                LEFT JOIN (
                                     SELECT r.projectIdx, 
-                                    SUM(r.rewardPrice) AS amount 
+                                    SUM(r.rewardPrice * a.quantity) AS amount 
                                     FROM wadiz.account AS a
-                                    LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                                    LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
                                     GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx 
                                     ORDER BY remaining ASC;`; //마감임박순
     const selectNewQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
@@ -98,11 +98,11 @@ exports.getProject = async function (req, res) {
                                     FROM wadiz.project AS p
                                     LEFT JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx 
                                     LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
-                                    LEFT JOIN (    
+                                    LEFT JOIN (
                                         SELECT r.projectIdx, 
-                                        SUM(r.rewardPrice) AS amount 
+                                        SUM(r.rewardPrice * a.quantity) AS amount 
                                         FROM wadiz.account AS a
-                                        LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                                        LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
                                         GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx 
                                         ORDER BY p.createdAt`; //최신순
     const selectSupporterQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
@@ -113,11 +113,11 @@ exports.getProject = async function (req, res) {
                                         FROM wadiz.project AS p
                                         LEFT JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx 
                                         LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
-                                        LEFT JOIN (    
+                                        LEFT JOIN (
                                             SELECT r.projectIdx, 
-                                            SUM(r.rewardPrice) AS amount 
+                                            SUM(r.rewardPrice * a.quantity) AS amount 
                                             FROM wadiz.account AS a
-                                            LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                                            LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
                                             GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx 
                                             LEFT JOIN (
                                             SELECT projectIdx, count(projectIdx) as sc
@@ -193,9 +193,9 @@ exports.getCategoryProject = async function (req, res) {
                                         LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
                                         LEFT JOIN (
                                             SELECT r.projectIdx, 
-                                            SUM(r.rewardPrice) AS amount 
+                                            SUM(r.rewardPrice * a.quantity) AS amount 
                                             FROM wadiz.account AS a
-                                            LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                                            LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
                                             GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
                                             WHERE p.categoryIdx = ?;`
         const categoryProjectResult = await db.query(categoryProjectQuery, [categoryIdx]);
@@ -220,8 +220,10 @@ exports.getSupporter = async function (req, res) {
     const selectSupporterQuery = `SELECT u.userIdx,
                                     u.profile, 
                                     CASE WHEN a.veilName = 0 THEN u.userName
-                                        WHEN a.veilName = 1 THEN "익명의",
-                                        WHEN a.veilPrice = 0 THEN (SELECT SUM(r.rewardPrice) FROM wadiz.reward WHERE u.userIdx = ?)
+                                        WHEN a.veilName = 1 THEN "익명의" END,
+                                    CASE WHEN a.veilPrice = 0 THEN (SELECT SUM(r.rewardPrice * a.quantity) 
+                                                                    FROM wadiz.reward r
+                                                                    INNER JOIN wadiz.account a ON a.rewardIdx = r.rewardIdx WHERE u.userIdx = ?)
                                         WHEN a.veilPrice = THEN "펀딩"
                                     FROM wadiz.user u 
                                     JOIN wadiz.account a ON u.userIdx = a.userIdx`
@@ -241,11 +243,11 @@ exports.searchProject = async function (req, res) {
                         FROM wadiz.project AS p
                         INNER JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx
                         INNER JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
-                        INNER JOIN (
+                        LEFT JOIN (
                             SELECT r.projectIdx, 
-                            SUM(r.rewardPrice) AS amount 
+                            SUM(r.rewardPrice * a.quantity) AS amount 
                             FROM wadiz.account AS a
-                            INNER JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx
+                            LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
                             GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
                         WHERE p.title LIKE ?;`
 
@@ -387,6 +389,7 @@ exports.postReward = async function (req, res) {
     const userIdx = decode.id
     const insertRewardQuery = `INSERT INTO wadiz.account (userIdx, projectIdx, rewardIdx, quantity, veilName, veilPrice) VALUES (?, ?, ?, ?, ?, ?);`
     console.log(userIdx)
+    console.log(rewardList.length)
     try {
         for (var i = 0; i < rewardList.length; i++) {
             if (!rewardList[i].rewardIdx) return res.send(utils.successFalse(301, "리워드를 선택해주세요"))
@@ -402,7 +405,7 @@ exports.postReward = async function (req, res) {
                 } else {
                     if (insertRewardResult.length == 0) {
                         return res.send(utils.successFalse(404, "해당 프로젝트가 존재하지 않습니다."));
-                    } else  return res.send(utils.successTrue(200, "리워드 선택 성공"));
+                    } else return res.send(utils.successTrue(200, "리워드 선택 성공"));
                 }
             }
         }
@@ -411,7 +414,6 @@ exports.postReward = async function (req, res) {
         return res.send(utils.successFalse(500, `Error: ${err.message}`));
     }
 }
-//delReward
 /** create : 2019.11.15
  delReward API = 프로젝트 리워드 취소
  **/
@@ -429,6 +431,29 @@ exports.delReward = async function (req, res) {
             return res.send(utils.successTrue(200, "결제 예약 취소 성공"));
         }
        
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+}
+
+/** create : 2019.11.16
+ likeProject API = 프로젝트 좋아요/좋아요취소
+ **/
+exports.likeProject = async function (req, res) {
+    let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
+    const userIdx = decode.id
+    const projectIdx = req.params.projectIdx
+    const likeCheck = await db.query(`SELECT userIdx FROM wadiz.like WHERE userIdx = ? AND projectIdx = ? `,[userIdx, projectIdx])
+   
+    try {
+        if (likeCheck.length == 1) {
+            const delLikeProject = await db.query(`DELETE FROM wadiz.like WHERE userIdx = ? AND projectIdx = ?`, [userIdx, projectIdx])
+            return res.send(utils.successTrue(200, "프로젝트 좋아요 취소"));
+        } else {
+            const addLikeProject = await db.query(`INSERT INTO wadiz.like (userIdx, projectIdx) VALUES (?, ?) `, [userIdx, projectIdx])
+            return res.send(utils.successTrue(200, "프로젝트 좋아요"));
+        }
     } catch (err) {
         logger.error(`App - Query error\n: ${err.message}`);
         return res.send(utils.successFalse(500, `Error: ${err.message}`));

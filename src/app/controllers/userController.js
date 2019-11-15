@@ -190,8 +190,8 @@ exports.getProfileMyReward = async function (req, res) {
     const userIdx = decode.id
 
     const getMyReward = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
-                            CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
-                            CONCAT(FORMAT(ar.amount,0),"원") AS amount, 
+                            IFNULL(CONCAT(ROUND((ar.amount / p.goal) * 100),"%"),"0%") as achievement,
+                            IFNULL(CONCAT(FORMAT(ar.amount,0),"원"),"0원") AS amount, 
                             CASE WHEN TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP,p.endDate) < 0 THEN "종료"
                                 ELSE CONCAT(TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP,p.endDate), "일 남음") END AS remaining
                             FROM wadiz.project AS p 
@@ -199,7 +199,7 @@ exports.getProfileMyReward = async function (req, res) {
                             LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
                             LEFT JOIN (
                                 SELECT r.projectIdx, 
-                                SUM(r.rewardPrice) AS amount 
+                                SUM(r.rewardPrice * a.quantity) AS amount 
                                 FROM wadiz.account AS a
                                 LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
                                 GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
@@ -211,7 +211,7 @@ exports.getProfileMyReward = async function (req, res) {
             res.send(utils.successFalse(600, "마이리워드 조회실패"));
         } else {
             if (getMyrewardR.length == 0) {
-                res.send(utils.successFalse(404, "해당 유저가 존재하지 않습니다."));
+                res.send(utils.successFalse(404, "펀딩한 리워드가 존재하지 않습니다."));
             } else res.send(utils.successTrue(200, "마이 리워드 조회성공", getMyrewardR));
         }
     } catch (err) {
@@ -232,8 +232,8 @@ exports.getProfileMyLike = async function (req, res) {
     const userIdx = decode.id
 
     const getLikeReward = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
-                            CONCAT(ROUND((ar.amount / p.goal) * 100),"%") as achievement,
-                            CONCAT(FORMAT(ar.amount,0),"원") AS amount, 
+                            IFNULL(CONCAT(ROUND((ar.amount / p.goal) * 100),"%"),"0%") as achievement,
+                            IFNULL(CONCAT(FORMAT(ar.amount,0),"원"),"0원") AS amount, 
                             CASE WHEN TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP,p.endDate) < 0 THEN "종료"
                                 ELSE CONCAT(TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP,p.endDate), "일 남음") END AS remaining
                             FROM wadiz.project AS p 
@@ -241,7 +241,7 @@ exports.getProfileMyLike = async function (req, res) {
                             LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
                             LEFT JOIN (
                                 SELECT r.projectIdx, 
-                                SUM(r.rewardPrice) AS amount 
+                                SUM(r.rewardPrice * a.quantity) AS amount 
                                 FROM wadiz.account AS a
                                 LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
                                 GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
@@ -255,7 +255,7 @@ exports.getProfileMyLike = async function (req, res) {
             res.send(utils.successFalse(600, "좋아한 리워드 조회실패"));
         } else {
             if (getLikeRewardR.length == 0) {
-                res.send(utils.successFalse(404, "해당 유저가 존재하지 않습니다."));
+                res.send(utils.successFalse(404, "좋아요 한 프로젝트가 존재하지 않습니다."));
             } else res.send(utils.successTrue(200, "좋아한 리워드 조회성공", getLikeRewardR));
         }
     } catch (err) {
