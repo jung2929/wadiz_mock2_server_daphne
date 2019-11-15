@@ -165,7 +165,7 @@ exports.getUnopenedProject = async function (req, res) {
                             WHERE TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP, p.startDate) > 0; `
     try {
         const unopendResult = await db.query(unopendQuery);
-        if(unopendResult.length == 0 ){
+        if (unopendResult.length == 0) {
             res.send(utils.successFalse(404, "오픈예정중인 프로젝트가 없습니다"));
         } else res.send(utils.successTrue(200, "오픈예정 프로젝트 조회 성공", unopendResult));
 
@@ -374,36 +374,61 @@ exports.getPolicy = async function (req, res) {
     }
 }
 
-/** create : 2019.11.11
- 05.project API = 리워드 선택 
+/** create : 2019.11.15
+ postReward API = 리워드 선택 
 리워드수량 익명이름 익명금액 삽입
  **/
 exports.postReward = async function (req, res) {
-    const rewardIdx = req.params.rewardIdx
-    const quantity = req.body.quantity
+    const projectIdx = req.params.projectIdx
+    const rewardList = req.body.rewardList
     const veilName = req.body.veilName
     const veilPrice = req.body.veilPrice
     let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
     const userIdx = decode.id
-    if (!rewardIdx) return res.send(utils.successFalse(301, "리워드를 선택해주세요"))
-    if (rewardIdx > 3) return res.send(utils.successFalse(302, "해당 리워드는 존재하지 않습니다."))
-    if (!quantity) return res.send(utils.successFalse(303, "수량을 선택해주세요"))
-    console.log(veilName, veilPrice)
-    //if(veilName != 0 || veilName != 1 || veilPrice != 0 || veilPrice != 1) return res.send(utils.successFalse(308, "공개 비공개 여부를 올바로 체크해주세요"));
-    const insertRewardQuery = `INSERT INTO wadiz.account (userIdx, rewardIdx, veilName, veilPrice) VALUES (?, ?, ?, ?);`
-
+    const insertRewardQuery = `INSERT INTO wadiz.account (userIdx, projectIdx, rewardIdx, quantity, veilName, veilPrice) VALUES (?, ?, ?, ?, ?, ?);`
+    console.log(userIdx)
     try {
-        for (var i = 0; i < quantity; i++) {
-            console.log("수량만큼 돌아" + quantity)
-            const insertRewardResult = await db.query(insertRewardQuery, [userIdx, rewardIdx, veilName, veilPrice])
-            if (!insertRewardResult) {
-                res.send(utils.successFalse(600, "리워드 선택 실패"));
+        for (var i = 0; i < rewardList.length; i++) {
+            if (!rewardList[i].rewardIdx) return res.send(utils.successFalse(301, "리워드를 선택해주세요"))
+            if (!rewardList[i].quantity) return res.send(utils.successFalse(303, "수량을 선택해주세요"))
+
+            const checkQuery = await db.query(`SELECT userIdx FROM wadiz.account WHERE userIdx = ? AND projectIdx = ? AND rewardIdx = ? AND quantity =? `, [userIdx, projectIdx, rewardList[i].rewardIdx, rewardList[i].quantity])
+            if (checkQuery.length > 0) {
+                return res.send(utils.successFalse(304, "이미 해당 리워드를 선택하였습니다."));
             } else {
-                if (insertRewardResult.length == 0) {
-                    res.send(utils.successFalse(404, "해당 프로젝트가 존재하지 않습니다."));
-                } else res.send(utils.successTrue(200, "리워드 선택 성공"));
+                const insertRewardResult = await db.query(insertRewardQuery, [userIdx, projectIdx, rewardList[i].rewardIdx, rewardList[i].quantity, veilName, veilPrice])
+                if (!insertRewardResult) {
+                    return res.send(utils.successFalse(600, "리워드 선택 실패"));
+                } else {
+                    if (insertRewardResult.length == 0) {
+                        return res.send(utils.successFalse(404, "해당 프로젝트가 존재하지 않습니다."));
+                    } else  return res.send(utils.successTrue(200, "리워드 선택 성공"));
+                }
             }
         }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+}
+//delReward
+/** create : 2019.11.15
+ delReward API = 프로젝트 리워드 취소
+ **/
+exports.delReward = async function (req, res) {
+    let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
+    const userIdx = decode.id
+    const projectIdx = req.params.projectIdx
+    const getProjectResult = await db.query(`SELECT * FROM wadiz.account WHERE userIdx = ? AND projectIdx = ? `, [userIdx, projectIdx])
+   
+    try {
+        if (getProjectResult.length == 0) {
+            return res.send(utils.successTrue(404, "해당 프로젝트를 펀딩한 내역이 없습니다."));
+        } else {
+            const delMyReward = await db.query(`DELETE FROM wadiz.account WHERE userIdx = ? AND projectIdx = ? `, [userIdx, projectIdx])
+            return res.send(utils.successTrue(200, "결제 예약 취소 성공"));
+        }
+       
     } catch (err) {
         logger.error(`App - Query error\n: ${err.message}`);
         return res.send(utils.successFalse(500, `Error: ${err.message}`));

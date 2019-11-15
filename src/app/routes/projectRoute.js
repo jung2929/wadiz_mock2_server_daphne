@@ -12,7 +12,8 @@ module.exports = function(app){
     app.get('/project/:projectIdx/unopened', project.getUnopenedDetail);
     app.get('/project/:projectIdx/reward', jwtMiddleware, project.getRewardProject); 
     app.get('/project/:projectIdx/policy', jwtMiddleware, project.getPolicy);
-    app.route('/project/:projectIdx/reward/:rewardIdx').post(jwtMiddleware, project.postReward);
+    app.route('/project/:projectIdx/reward').post(jwtMiddleware, project.postReward);
+    app.route('/project/:projectIdx').delete(jwtMiddleware, project.delReward);
   
     
   
