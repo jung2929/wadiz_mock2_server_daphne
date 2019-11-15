@@ -124,9 +124,35 @@ exports.getPay = async function (req, res) {
             res.send(utils.successFalse(600, "결제정보 조회 실패"));
         } else {
             if (getPayResult[0].card == null || getPayResult[0].cardName == null) {
-                res.send(utils.successFalse(404, "이 유저의 등록된 정보가 없습니다"));
+                res.send(utils.successFalse(404, "등록된 결제정보가 없습니다"));
             } else res.send(utils.successTrue(200, "결제정보 조회 성공", getPayResult));
 
+        }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+
+}
+/**
+ create : 2019.11.15
+pay API = 결제정보 삭제
+카드번호
+**/
+exports.deletePay = async function (req, res) {
+    let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
+    const userIdx = decode.id
+    
+    const payDelQuery = `UPDATE wadiz.user SET card = null , birth = null WHERE userIdx =?`
+    const getPayResult = await db.query(`SELECT card, birth FROM wadiz.user WHERE userIdx = ? `, [userIdx])
+    try {
+        const payDelResult = await db.query(payDelQuery, [userIdx])
+        if (!payDelResult) {
+            res.send(utils.successFalse(600, "결제정보 삭제 실패"));
+        } else {
+            if (getPayResult[0].birth == null || getPayResult[0].card == null) {
+                res.send(utils.successFalse(404, "등록된 결제정보가 없습니다"));
+            } else res.send(utils.successTrue(200, "결제정보 삭제 성공"));
         }
     } catch (err) {
         logger.error(`App - Query error\n: ${err.message}`);

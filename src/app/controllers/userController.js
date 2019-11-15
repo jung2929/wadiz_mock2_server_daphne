@@ -152,10 +152,11 @@ exports.patchProfile = async function (req, res) {
     const categoryItems = req.body.categoryItems
     const userinfo = req.body.userinfo
     const userInterestType = 1;
+    console.log(categoryItems)
 
     const editInfoQurey = `UPDATE wadiz.user SET userinfo = ? WHERE userIdx = ?`
     const addInterestQuery = `INSERT INTO wadiz.categoryInterest (userIdx, type, categoryIdx) VALUE (?, ?, ?)`
-    console.log(categoryItems.length)
+    //console.log(categoryItems.length)
 
     try {
         if (categoryItems.length > 1) { //관심사가 여러개 들어올떄

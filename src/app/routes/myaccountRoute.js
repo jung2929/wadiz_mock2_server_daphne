@@ -5,4 +5,5 @@ module.exports = function (app) {
     app.get('/delivery', jwtMiddleware, account.getDelivery);
     app.route('/pay').put(jwtMiddleware, account.updatePay);
     app.get('/pay', jwtMiddleware, account.getPay);
+    app.route('/pay').delete(jwtMiddleware, account.deletePay);
 }
