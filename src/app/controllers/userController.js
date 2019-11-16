@@ -4,6 +4,7 @@ const { logger } = require('../../../config/winston');
 const jwt = require('jsonwebtoken');
 const regexEmail = require('regex-email');
 const crypto = require('crypto');
+const axios = require('axios');
 const secret_config = require('../../../config/secret');
 const utils = require('../../../modules/resModule')
 
@@ -75,8 +76,6 @@ exports.signin = async function (req, res) {
                 FROM user 
                 WHERE userEmail = ?;
                 `;
-        //let selectUserInfoParams = [email];
-
         const userInfoRows = await db.query(selectUserInfoQuery, email);
         if (userInfoRows.length == 1) {
             const hashedPassword = await crypto.createHash('sha512').update(pw).digest('hex');
@@ -108,6 +107,62 @@ exports.signin = async function (req, res) {
 };
 
 /**
+ update : 2019.11.15
+facebook API = 소셜로그인(페이스북)
+ **/
+exports.facebook = async function (req, res) {
+    const facebooktoken = req.body.fbt
+    const type = "facebook"
+    try {
+        const result = await axios.get('https://graph.facebook.com/me?fields=email,name,picture&', {
+            params: {
+                access_token: facebooktoken
+            }
+        });
+        const email = result.data.email;
+        const name = result.data.name;
+        const profile = result.data.picture.data.url;
+        if(!facebooktoken) return res.send(utils.successFalse(404, "토큰을 입력해주세요"));
+        if(!email || !name || !profile) return res.send(utils.successFalse(404, "정보를 가져올수 없습니다"));
+
+        const getUserCheck = await db.query(`SELECT userIdx, userEmail FROM wadiz.user WHERE userEmail = ?`, [email])
+        if(getUserCheck.length > 0) { //로그인
+             //토큰 생성
+             console.log(getUserCheck[0].userIdx)
+             let token = await jwt.sign({
+                id: getUserCheck[0].userIdx,
+            }, // 토큰의 내용(payload)
+                secret_config.jwtsecret, // 비밀 키
+                {
+                    expiresIn: '365d',
+                    subject: 'userInfo',
+                } // 유효 시간은 365일
+            );
+            res.send(utils.successTrue(200, "페이스북 로그인 성공", token));
+        } else { //회원가입
+            //db삽입후
+            const insertFbUser = await db.query(`INSERT INTO wadiz.user(userEmail, userName, profileImg, type) VALUES (?, ?, ?, ?)`,[email, name, profile, type])
+            //토큰 생성
+            console.log(insertFbUser.insertId)
+            let token = await jwt.sign({
+                id: insertFbUser.insertId,
+            }, // 토큰의 내용(payload)
+                secret_config.jwtsecret, // 비밀 키
+                {
+                    expiresIn: '365d',
+                    subject: 'userInfo',
+                } // 유효 시간은 365일
+            );
+            res.send(utils.successTrue(200, "페이스북 회원가입 성공", token));
+        }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        console.log(typeof(result))
+        return res.send(utils.successFalse(500, `Error: Malformed access token`));
+    }
+};
+
+/**
  update : 2019.11.10
  getProfile API = 마이페이지 조회
  이름 개인회원 프로필이미지 관심사(5개)
@@ -125,7 +180,7 @@ exports.getProfile = async function (req, res) {
     const getProfileResult = {
         "userName": getProfileR[0].userName,
         "profileImg": getProfileR[0].profileImg,
-        "userInfo" : getProfileR[0].userInfo,
+        "userInfo": getProfileR[0].userInfo,
         "interestList": getInterestR
     }
     try {
@@ -169,7 +224,7 @@ exports.patchProfile = async function (req, res) {
             const editInfoResult = await db.query(editInfoQurey, [userinfo, userIdx])
             const addInterestR = await db.query(addInterestQuery, [userIdx, userInterestType, categoryItems[0].categoryIdx])
             res.send(utils.successTrue(202, "유저 관심사 추가/소개수정 성공"));
-        } else if(categoryItems.length == 0) {
+        } else if (categoryItems.length == 0) {
             res.send(utils.successTrue(200, "관심사 선택 안함"));
         } else res.send(utils.successFalse(600, "유저 관심사 추가/소개수정 실패"));
 

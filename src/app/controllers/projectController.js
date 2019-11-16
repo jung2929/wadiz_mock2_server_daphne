@@ -307,14 +307,16 @@ exports.searchProject = async function (req, res) {
 
 /** create : 2019.11.10
  05.project API = 프로젝트 상세정보 조회
- 사진 타이틀 카테고리 설명 남은일수 달성률 총펀딩금액 서포터명수
+ 사진 타이틀 카테고리 설명 남은일수 달성률 총펀딩금액 서포터명수 //0명
  **/
 exports.getBasicProject = async function (req, res) {
     const projectIdx = req.params.projectIdx
-    const getBasicQuery = `SELECT p.thumnail, p.title, c.category, p.infoText, CONCAT(sc.supporterCnt,"명") as supprterCnt, p.projectStory
+    const getBasicQuery = `SELECT p.thumnail, p.title, c.category, p.infoText, 
+                            IFNULL(CONCAT(sc.supporterCnt,"명"),"0명") as supprterCnt, 
+                            p.projectStory
                             FROM wadiz.project p 
-                            JOIN wadiz.category c ON p.categoryIdx = c.categoryIdx
-                            JOIN (SELECT count(1) as supporterCnt, a.projectIdx  FROM wadiz.account a WHERE a.projectIdx = ?) as sc ON p.projectIdx = sc.projectIdx
+                            LEFT JOIN wadiz.category c ON p.categoryIdx = c.categoryIdx
+                            LEFT JOIN (SELECT count(1) as supporterCnt, a.projectIdx  FROM wadiz.account a WHERE a.projectIdx = ?) as sc ON p.projectIdx = sc.projectIdx
                             WHERE p.projectIdx = ?`
     const getBasicResult = await db.query(getBasicQuery, [projectIdx,projectIdx])
     try {

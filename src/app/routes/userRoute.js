@@ -4,6 +4,7 @@ module.exports = function(app){
 
     app.route('/signup').post(user.signup);
     app.route('/signin').post(user.signin);
+    app.route('/facebook').post(user.facebook);
 
     app.get('/profile', jwtMiddleware, user.getProfile);
     app.route('/profile').patch(jwtMiddleware,user.patchProfile);
