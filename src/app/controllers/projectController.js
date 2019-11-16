@@ -183,11 +183,29 @@ exports.getCategoryProject = async function (req, res) {
     const categoryIdx = req.params.categoryIdx
     if (categoryIdx < 0 || categoryIdx > 9) return res.send(utils.successFalse(301, "해당 카테고리가 존재하지 않습니다."));
     try {
-        const categoryProjectQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
+        if (categoryIdx == 0) {
+            const categoryProjectQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
                                         IFNULL(CONCAT(ROUND((ar.amount / p.goal) * 100),"%"),"0%") as achievement,
                                         IFNULL(CONCAT(FORMAT(ar.amount,0),"원"),"0원") AS amount, 
                                         CASE WHEN TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP,p.endDate) < 0 THEN "종료"
-                                ELSE CONCAT(TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP,p.endDate), "일 남음") END AS remaining
+                                        ELSE CONCAT(TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP,p.endDate), "일 남음") END AS remaining
+                                        FROM wadiz.project AS p
+                                        LEFT JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx
+                                        LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
+                                        LEFT JOIN (
+                                            SELECT r.projectIdx, 
+                                            SUM(r.rewardPrice * a.quantity) AS amount 
+                                            FROM wadiz.account AS a
+                                            LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
+                                            GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx;`
+            const categoryProjectResult = await db.query(categoryProjectQuery);
+            return res.send(utils.successTrue(200, "전체 카테고리 프로젝트 성공", categoryProjectResult));
+        } else {
+            const categoryProjectQuery = `SELECT p.projectIdx, p.thumnail, p.title, c.category, m.makerName, 
+                                        IFNULL(CONCAT(ROUND((ar.amount / p.goal) * 100),"%"),"0%") as achievement,
+                                        IFNULL(CONCAT(FORMAT(ar.amount,0),"원"),"0원") AS amount, 
+                                        CASE WHEN TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP,p.endDate) < 0 THEN "종료"
+                                        ELSE CONCAT(TIMESTAMPDIFF(DAY,CURRENT_TIMESTAMP,p.endDate), "일 남음") END AS remaining
                                         FROM wadiz.project AS p
                                         LEFT JOIN wadiz.category AS c ON p.categoryIdx = c.categoryIdx
                                         LEFT JOIN wadiz.maker AS m ON p.projectIdx = m.projectIdx
@@ -198,11 +216,13 @@ exports.getCategoryProject = async function (req, res) {
                                             LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
                                             GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
                                             WHERE p.categoryIdx = ?;`
-        const categoryProjectResult = await db.query(categoryProjectQuery, [categoryIdx]);
-        console.log(categoryProjectResult)
-        if (categoryProjectResult.length == 0) {
-            res.send(utils.successFalse(404, "검색결과 없습니다."));
-        } else res.send(utils.successTrue(200, "카테고리별 프로젝트 성공", categoryProjectResult));
+            const categoryProjectResult = await db.query(categoryProjectQuery, [categoryIdx]);
+            console.log(categoryProjectResult)
+            if (categoryProjectResult.length == 0) {
+                res.send(utils.successFalse(404, "검색결과 없습니다."));
+            } else res.send(utils.successTrue(200, "카테고리별 프로젝트 성공", categoryProjectResult));
+        }
+
     } catch (err) {
         logger.error(`App - Query error\n: ${err.message}`);
         return res.send(utils.successFalse(500, `Error: ${err.message}`));
@@ -213,22 +233,35 @@ exports.getCategoryProject = async function (req, res) {
  get supporter API = 프로젝트 서포터 조회
  총서포터명수 프로필 이미지 누가(익명인지) 얼마(비공개인지) 펀딩했습니다
  **/
+//서포터가 같으면 금액에 합쳐야하는데 합치지 말자^^!
 exports.getSupporter = async function (req, res) {
     let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
     const userIdx = decode.id
     const projectIdx = req.params.projectIdx
-    const selectSupporterQuery = `SELECT u.userIdx,
-                                    u.profile, 
-                                    CASE WHEN a.veilName = 0 THEN u.userName
-                                        WHEN a.veilName = 1 THEN "익명의" END,
-                                    CASE WHEN a.veilPrice = 0 THEN (SELECT SUM(r.rewardPrice * a.quantity) 
-                                                                    FROM wadiz.reward r
-                                                                    INNER JOIN wadiz.account a ON a.rewardIdx = r.rewardIdx WHERE u.userIdx = ?)
-                                        WHEN a.veilPrice = THEN "펀딩"
+    const selectSupporterQuery = `SELECT u.userIdx, u.profileImg, 
+                                    (CASE WHEN a.veilName = 0 THEN u.userName
+                                    WHEN a.veilName = 1 THEN "익명의" END) as veilName,
+                                    FORMAT(SUM(a.price * a.quantity),0) as veilPrice
                                     FROM wadiz.user u 
-                                    JOIN wadiz.account a ON u.userIdx = a.userIdx`
-
-
+                                    INNER JOIN wadiz.account a 
+                                    ON u.userIdx = a.userIdx
+                                    WHERE a.userIdx = ? AND a.projectIdx = ?
+                                    GROUP BY u.userIdx, u.profileImg, veilName;`
+    const selectSupporterR = await db.query(selectSupporterQuery, [userIdx, projectIdx])
+    const projectSupportResult = {
+        supportResult: selectSupporterR,
+        cnt: selectSupporterR.length
+    };
+    try {
+        if (selectSupporterR.length == 0) {
+            res.send(utils.successFalse(404, "이 프로젝트에 서포터가 없습니다."));
+        } else {
+            res.send(utils.successTrue(200, "서포터 조회 성공", projectSupportResult));
+        }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
 }
 /** create : 2019.11.10
  05.project API = 프로젝트 검색
@@ -278,11 +311,12 @@ exports.searchProject = async function (req, res) {
  **/
 exports.getBasicProject = async function (req, res) {
     const projectIdx = req.params.projectIdx
-    const getBasicQuery = `SELECT p.thumnail, p.title, c.category, p.infoText, p.projectStory
+    const getBasicQuery = `SELECT p.thumnail, p.title, c.category, p.infoText, CONCAT(sc.supporterCnt,"명") as supprterCnt, p.projectStory
                             FROM wadiz.project p 
                             JOIN wadiz.category c ON p.categoryIdx = c.categoryIdx
+                            JOIN (SELECT count(1) as supporterCnt, a.projectIdx  FROM wadiz.account a WHERE a.projectIdx = ?) as sc ON p.projectIdx = sc.projectIdx
                             WHERE p.projectIdx = ?`
-    const getBasicResult = await db.query(getBasicQuery, [projectIdx])
+    const getBasicResult = await db.query(getBasicQuery, [projectIdx,projectIdx])
     try {
         if (!getBasicResult) {
             res.send(utils.successFalse(600, "프로젝트 상세정보 조회실패"));
@@ -387,20 +421,22 @@ exports.postReward = async function (req, res) {
     const veilPrice = req.body.veilPrice
     let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
     const userIdx = decode.id
-    const insertRewardQuery = `INSERT INTO wadiz.account (userIdx, projectIdx, rewardIdx, quantity, veilName, veilPrice) VALUES (?, ?, ?, ?, ?, ?);`
+    const insertRewardQuery = `INSERT INTO wadiz.account (userIdx, projectIdx, rewardIdx, price, quantity, veilName, veilPrice) VALUES (?, ?, ?, ?, ?, ?, ?);`
+
     console.log(userIdx)
     console.log(rewardList.length)
+    //map lamda transaction (table lock)
     try {
         for (var i = 0; i < rewardList.length; i++) {
             if (!rewardList[i].rewardIdx) return res.send(utils.successFalse(301, "리워드를 선택해주세요"))
             if (!rewardList[i].quantity) return res.send(utils.successFalse(303, "수량을 선택해주세요"))
-
+            const getRewardPrice = await db.query(`SELECT rewardPrice FROM wadiz.reward WHERE rewardIdx = ?`, [rewardList[i].rewardIdx])
             const checkQuery = await db.query(`SELECT userIdx FROM wadiz.account WHERE userIdx = ? AND projectIdx = ? AND rewardIdx = ? AND quantity =? `, [userIdx, projectIdx, rewardList[i].rewardIdx, rewardList[i].quantity])
             if (checkQuery.length > 0) {
                 return res.send(utils.successFalse(304, "이미 해당 리워드를 선택하였습니다."));
             } else {
-                const insertRewardResult = await db.query(insertRewardQuery, [userIdx, projectIdx, rewardList[i].rewardIdx, rewardList[i].quantity, veilName, veilPrice])
-                if (!insertRewardResult) {
+                const insertRewardResult = await db.query(insertRewardQuery, [userIdx, projectIdx, rewardList[i].rewardIdx, getRewardPrice[i].rewardPrice, rewardList[i].quantity, veilName, veilPrice])
+                if (!insertRewardResult) { //or and
                     return res.send(utils.successFalse(600, "리워드 선택 실패"));
                 } else {
                     if (insertRewardResult.length == 0) {
@@ -422,7 +458,7 @@ exports.delReward = async function (req, res) {
     const userIdx = decode.id
     const projectIdx = req.params.projectIdx
     const getProjectResult = await db.query(`SELECT * FROM wadiz.account WHERE userIdx = ? AND projectIdx = ? `, [userIdx, projectIdx])
-   
+
     try {
         if (getProjectResult.length == 0) {
             return res.send(utils.successTrue(404, "해당 프로젝트를 펀딩한 내역이 없습니다."));
@@ -430,7 +466,7 @@ exports.delReward = async function (req, res) {
             const delMyReward = await db.query(`DELETE FROM wadiz.account WHERE userIdx = ? AND projectIdx = ? `, [userIdx, projectIdx])
             return res.send(utils.successTrue(200, "결제 예약 취소 성공"));
         }
-       
+
     } catch (err) {
         logger.error(`App - Query error\n: ${err.message}`);
         return res.send(utils.successFalse(500, `Error: ${err.message}`));
@@ -444,8 +480,8 @@ exports.likeProject = async function (req, res) {
     let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
     const userIdx = decode.id
     const projectIdx = req.params.projectIdx
-    const likeCheck = await db.query(`SELECT userIdx FROM wadiz.like WHERE userIdx = ? AND projectIdx = ? `,[userIdx, projectIdx])
-   
+    const likeCheck = await db.query(`SELECT userIdx FROM wadiz.like WHERE userIdx = ? AND projectIdx = ? `, [userIdx, projectIdx])
+
     try {
         if (likeCheck.length == 1) {
             const delLikeProject = await db.query(`DELETE FROM wadiz.like WHERE userIdx = ? AND projectIdx = ?`, [userIdx, projectIdx])

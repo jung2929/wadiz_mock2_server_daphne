@@ -45,7 +45,7 @@ exports.signup = async function (req, res) {
                     VALUES (?, ?, ?);
                         `;
             const insertUserInfoParams = [email, hashedPassword, name];
-            const signupaRow = await db.query(insertUserInfoQuery, insertUserInfoParams);
+            const signupaRow = await db.query(insertUserInfoQuery, insertUserInfoParams); //변수명
             res.send(utils.successTrue(201, "회원가입 성공"));
         }
     } catch (err) {

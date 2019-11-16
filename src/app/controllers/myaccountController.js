@@ -139,7 +139,7 @@ exports.getPay = async function (req, res) {
 pay API = 결제정보 삭제
 카드번호
 **/
-exports.deletePay = async function (req, res) {
+exports.deletePay = async function (req, res) { //clearPayInfo
     let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
     const userIdx = decode.id
     
