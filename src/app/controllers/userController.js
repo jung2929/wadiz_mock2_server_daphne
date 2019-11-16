@@ -211,10 +211,13 @@ exports.patchProfile = async function (req, res) {
 
     const editInfoQurey = `UPDATE wadiz.user SET userinfo = ? WHERE userIdx = ?`
     const addInterestQuery = `INSERT INTO wadiz.categoryInterest (userIdx, type, categoryIdx) VALUE (?, ?, ?)`
+    const delInterestQuery = `DELETE FROM categoryInterest WHERE userIdx = ?`
     //console.log(categoryItems.length)
+    
 
     try {
         if (categoryItems.length > 1) { //관심사가 여러개 들어올떄
+            const delInterestR = await db.query(delInterestQuery,[userIdx])
             const editInfoResult = await db.query(editInfoQurey, [userinfo, userIdx])
             for (var i = 0; i < categoryItems.length; i++) {
                 const addInterestR = await db.query(addInterestQuery, [userIdx, userInterestType, categoryItems[i].categoryIdx])

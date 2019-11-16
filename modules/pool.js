@@ -19,10 +19,9 @@ module.exports = { // 두 개의 메소드 module화
     },
     transaction : async (...args) => {
         const connection = await pool.getConnection();
-    
         try {
             await connection.beginTransaction();
-            await args[0](connection);
+            await args[0](connection, ...args);
             await connection.commit();
         } catch (error) {
             console.log(error);
@@ -32,7 +31,7 @@ module.exports = { // 두 개의 메소드 module화
         } finally {
             connection.release();
         }
-    },
+    }
 
 
 

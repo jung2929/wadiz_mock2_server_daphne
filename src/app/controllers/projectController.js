@@ -312,6 +312,7 @@ exports.searchProject = async function (req, res) {
 exports.getBasicProject = async function (req, res) {
     const projectIdx = req.params.projectIdx
     const getBasicQuery = `SELECT p.thumnail, p.title, c.category, p.infoText, 
+                            CONCAT(FORMAT(p.goal,0),"원") as goal, CONCAT(LEFT(p.startDate,11),"~ ",LEFT(p.endDate,11)) as term,
                             IFNULL(CONCAT(sc.supporterCnt,"명"),"0명") as supprterCnt, 
                             m.makerName, m.makerImg, m.facebook, m.instagram,
                             p.projectStory
@@ -360,9 +361,6 @@ exports.getUnopenedDetail = async function (req, res) {
         logger.error(`App - Query error\n: ${err.message}`);
         return res.send(utils.successFalse(500, `Error: ${err.message}`));
     }
-
-
-
 }
 /** create : 2019.11.10
  05.project API = 프로젝트 리워드 조회
