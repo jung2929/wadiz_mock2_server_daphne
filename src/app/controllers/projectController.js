@@ -313,9 +313,11 @@ exports.getBasicProject = async function (req, res) {
     const projectIdx = req.params.projectIdx
     const getBasicQuery = `SELECT p.thumnail, p.title, c.category, p.infoText, 
                             IFNULL(CONCAT(sc.supporterCnt,"명"),"0명") as supprterCnt, 
+                            m.makerName, m.makerImg, m.facebook, m.instagram,
                             p.projectStory
                             FROM wadiz.project p 
                             LEFT JOIN wadiz.category c ON p.categoryIdx = c.categoryIdx
+                            LEFT JOIN wadiz.maker m ON p.projectIdx = m.projectIdx
                             LEFT JOIN (SELECT count(1) as supporterCnt, a.projectIdx  FROM wadiz.account a WHERE a.projectIdx = ?) as sc ON p.projectIdx = sc.projectIdx
                             WHERE p.projectIdx = ?`
     const getBasicResult = await db.query(getBasicQuery, [projectIdx,projectIdx])
@@ -339,7 +341,7 @@ exports.getBasicProject = async function (req, res) {
 exports.getUnopenedDetail = async function (req, res) {
 
     const projectIdx = req.params.projectIdx
-    const getUnopendQuery = `SELECT p.thumnail, p.title, p.infoText, CONCAT("메이커 : ",m.makerName) as makerName,
+    const getUnopendQuery = `SELECT p.thumnail, p.title, p.infoText, CONCAT("메이커 : ",m.makerName) as makerName, m.makerImg,
                             p.projectStory,
                             "11월 중 오픈예정" as expected
                             FROM wadiz.project p 
