@@ -245,9 +245,9 @@ exports.getSupporter = async function (req, res) {
                                     FROM wadiz.user u 
                                     INNER JOIN wadiz.account a 
                                     ON u.userIdx = a.userIdx
-                                    WHERE a.userIdx = ? AND a.projectIdx = ?
+                                    WHERE a.projectIdx = ?
                                     GROUP BY u.userIdx, u.profileImg, veilName;`
-    const selectSupporterR = await db.query(selectSupporterQuery, [userIdx, projectIdx])
+    const selectSupporterR = await db.query(selectSupporterQuery, [projectIdx])
     const projectSupportResult = {
         supportResult: selectSupporterR,
         cnt: selectSupporterR.length
@@ -425,6 +425,8 @@ exports.postReward = async function (req, res) {
     const userIdx = decode.id
     const insertRewardQuery = `INSERT INTO wadiz.account (userIdx, projectIdx, rewardIdx, price, quantity, veilName, veilPrice) VALUES (?, ?, ?, ?, ?, ?, ?);`
 
+
+    const rewardIdxCheck = `SELECT projectIdx FROM `
     console.log(userIdx)
     console.log(rewardList.length)
     //map lamda transaction (table lock)
@@ -487,11 +489,40 @@ exports.likeProject = async function (req, res) {
     try {
         if (likeCheck.length == 1) {
             const delLikeProject = await db.query(`DELETE FROM wadiz.like WHERE userIdx = ? AND projectIdx = ?`, [userIdx, projectIdx])
-            return res.send(utils.successTrue(200, "프로젝트 좋아요 취소"));
+            return res.send(utils.successTrue(201, "프로젝트 좋아요 취소"));
         } else {
             const addLikeProject = await db.query(`INSERT INTO wadiz.like (userIdx, projectIdx) VALUES (?, ?) `, [userIdx, projectIdx])
             return res.send(utils.successTrue(200, "프로젝트 좋아요"));
         }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+}
+/** create : 2019.11.16
+ likeProject API = 프로젝트 좋아요 여부/ 좋아요 개수
+ **/
+exports.likeInfoProject = async function (req, res) {
+    let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
+    const userIdx = decode.id
+    const projectIdx = req.params.projectIdx
+    const likeCntQuery = `SELECT count(likeIdx) as likeCnt
+                            FROM wadiz.like 
+                            WHERE projectIdx = ? `
+    const islikeQuery = `SELECT
+                        p.projectIdx, (wl.likeIdx IS NOT NULL) as isLike
+                        FROM (SELECT * FROM wadiz.like l WHERE l.userIdx = ? AND l.projectIdx = ?) wl
+                        RIGHT JOIN wadiz.project p ON wl.projectIdx = p.projectIdx
+                        `
+    try {
+        const likeCntResult = await db.query(likeCntQuery,[projectIdx])
+        const isLikeResult = await db.query(islikeQuery,[userIdx, projectIdx])
+
+        const likeInfo = {
+            "likeCnt" : likeCntResult[0].likeCnt,
+            "isLike" : isLikeResult[0].isLike
+        }
+        return res.send(utils.successTrue(200, "프로젝트 좋아요 개수/ 여부 성공",likeInfo));        
     } catch (err) {
         logger.error(`App - Query error\n: ${err.message}`);
         return res.send(utils.successFalse(500, `Error: ${err.message}`));

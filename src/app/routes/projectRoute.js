@@ -15,6 +15,7 @@ module.exports = function(app){
     app.route('/project/:projectIdx/reward').post(jwtMiddleware, project.postReward);
     app.route('/project/:projectIdx').delete(jwtMiddleware, project.delReward);
     app.route('/project/:projectIdx/like').post(jwtMiddleware, project.likeProject);
+    app.get('/project/:projectIdx/isLiked',jwtMiddleware, project.likeInfoProject);
   
     
   

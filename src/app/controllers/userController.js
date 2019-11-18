@@ -209,13 +209,12 @@ exports.patchProfile = async function (req, res) {
     const userInterestType = 1;
     console.log(categoryItems)
 
-    const editInfoQurey = `UPDATE wadiz.user SET userinfo = ? WHERE userIdx = ?`
+    const editInfoQurey = `UPDATE wadiz.user SET userInfo = ? WHERE userIdx = ?`
     const addInterestQuery = `INSERT INTO wadiz.categoryInterest (userIdx, type, categoryIdx) VALUE (?, ?, ?)`
     const delInterestQuery = `DELETE FROM categoryInterest WHERE userIdx = ?`
-    //console.log(categoryItems.length)
-    
-
     try {
+        const delInterestR = await db.query(delInterestQuery,[userIdx])
+        const editInfoResult = await db.query(editInfoQurey, [userinfo, userIdx])
         if (categoryItems.length > 1) { //관심사가 여러개 들어올떄
             const delInterestR = await db.query(delInterestQuery,[userIdx])
             const editInfoResult = await db.query(editInfoQurey, [userinfo, userIdx])
@@ -224,6 +223,7 @@ exports.patchProfile = async function (req, res) {
             }
             res.send(utils.successTrue(201, "유저 관심사 여러개 추가/소개수정 성공"));
         } else if (categoryItems.length == 1) {
+            const delInterestR = await db.query(delInterestQuery,[userIdx])
             const editInfoResult = await db.query(editInfoQurey, [userinfo, userIdx])
             const addInterestR = await db.query(addInterestQuery, [userIdx, userInterestType, categoryItems[0].categoryIdx])
             res.send(utils.successTrue(202, "유저 관심사 추가/소개수정 성공"));
@@ -303,7 +303,7 @@ exports.getProfileMyLike = async function (req, res) {
                                 FROM wadiz.account AS a
                                 LEFT JOIN wadiz.reward AS r ON a.rewardIdx = r.rewardIdx 
                                 GROUP BY r.projectIdx) AS ar ON ar.projectIdx = p.projectIdx
-                                LEFT JOIN wadiz.like l ON p.projectIdx = l.userIdx
+                                LEFT JOIN wadiz.like l ON p.projectIdx = l.projectIdx
                                 WHERE l.userIdx = ? AND p.projectIdx = l.projectIdx`
 
     const getLikeRewardR = await db.query(getLikeReward, userIdx)
