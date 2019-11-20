@@ -238,6 +238,36 @@ exports.patchProfile = async function (req, res) {
 }
 
 /**
+ create : 2019.11.20
+profileImg API = 프로필 사진 수정
+
+**/
+exports.updateProfileImg = async function (req, res) {
+    let decode = await jwt.verify(req.headers.token, secret_config.jwtsecret)
+    const userIdx = decode.id
+    const profileImg = req.body.profileImg
+    
+    const insertImgQuery = `UPDATE wadiz.user SET profileImg = ? WHERE userIdx = ?;`
+
+    if(!profileImg) return res.send(utils.successFalse(301, "프로필 사진을 선택해주세요"))
+
+    try {
+        const insertProfileImgR = await db.query(insertImgQuery, [profileImg, userIdx])
+        if (!insertProfileImgR) {
+            res.send(utils.successFalse(600, "프로필 사진 수정 실패"));
+        } else {
+            if (insertProfileImgR.length == 0) {
+                res.send(utils.successFalse(404, "해당 유저가 존재하지 않습니다."));
+            } else res.send(utils.successTrue(200, "프로필 사진 수정 성공"));
+
+        }
+    } catch (err) {
+        logger.error(`App - Query error\n: ${err.message}`);
+        return res.send(utils.successFalse(500, `Error: ${err.message}`));
+    }
+}
+
+/**
  update : 2019.11.10
  getProfile API = 마이페이지 마이리워드 조회
  

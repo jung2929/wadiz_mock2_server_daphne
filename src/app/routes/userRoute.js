@@ -8,6 +8,7 @@ module.exports = function(app){
 
     app.get('/profile', jwtMiddleware, user.getProfile);
     app.route('/profile').patch(jwtMiddleware,user.patchProfile);
+    app.route('/profile/img').patch(jwtMiddleware,user.updateProfileImg);
     app.get('/profile/reward', jwtMiddleware, user.getProfileMyReward);
     app.get('/profile/like', jwtMiddleware, user.getProfileMyLike);
 
